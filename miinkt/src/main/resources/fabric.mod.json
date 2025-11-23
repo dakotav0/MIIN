@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 1,
+  "id": "miinkt",
+  "version": "${version}",
+  "name": "MIINkt",
+  "description": "Connects Minecraft to the MIIN Knowledge Tool",
+  "authors": [
+    "MIIN"
+  ],
+  "contact": {
+    "homepage": "https://github.com/dakotav0/MIIN",
+    "sources": "https://github.com/dakotav0/MIIN"
+  },
+  "license": "MIT",
+  "icon": "assets/MIINkt/icon.png",
+  "environment": "*",
+  "entrypoints": {
+    "main": [
+      {
+        "adapter": "kotlin",
+        "value": "miinkt.listener.MIINListener"
+      }
+    ],
+    "client": [
+      {
+        "adapter": "kotlin",
+        "value": "miinkt.listener.MIINListenerClient"
+      }
+    ]
+  },
+  "depends": {
+    "fabricloader": ">=0.16.9",
+    "minecraft": "~1.21.10",
+    "java": ">=21",
+    "fabric-api": "*",
+    "fabric-language-kotlin": ">=1.12.3+kotlin.2.0.21"
+  }
+}

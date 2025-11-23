@@ -1,0 +1,198 @@
+{
+  "skins": [
+    {
+      "filename": "marina.png",
+      "npc_id": "marina",
+      "tags": {
+        "role": ["fisher", "gatherer", "storyteller"],
+        "vibe": ["weathered", "patient", "superstitious", "wise"],
+        "palette": ["blue", "grey", "white"],
+        "biome": ["ocean", "beach", "coastal"]
+      },
+      "description": "A weathered fisher with ocean-themed clothing"
+    },
+    {
+      "filename": "vex.png",
+      "npc_id": "vex",
+      "tags": {
+        "role": ["mystic", "explorer", "dimension-walker"],
+        "vibe": ["cryptic", "intense", "otherworldly", "unhinged"],
+        "palette": ["purple", "black", "void"],
+        "biome": ["end", "nether", "dimensional"]
+      },
+      "description": "A dimension-scarred traveler with ethereal appearance"
+    },
+    {
+      "filename": "rowan.png",
+      "npc_id": "rowan",
+      "tags": {
+        "role": ["merchant", "trader", "negotiator"],
+        "vibe": ["wealthy", "shrewd", "friendly", "professional"],
+        "palette": ["gold", "green", "brown"],
+        "biome": ["city", "village", "market"]
+      },
+      "description": "A well-dressed merchant with coin purse and traveling gear"
+    },
+    {
+      "filename": "kira.png",
+      "npc_id": "kira",
+      "tags": {
+        "role": ["warrior", "hunter", "protector"],
+        "vibe": ["brave", "battle-worn", "protective", "aggressive"],
+        "palette": ["black", "red", "steel"],
+        "biome": ["plains", "mountains", "fortress"]
+      },
+      "description": "A seasoned monster hunter with combat gear and weapons"
+    },
+    {
+      "filename": "thane.png",
+      "npc_id": "thane",
+      "tags": {
+        "role": ["guard", "warrior", "official"],
+        "vibe": ["dutiful", "stern", "vigilant", "loyal"],
+        "palette": ["iron", "blue", "grey"],
+        "biome": ["city", "fortress", "walls"]
+      },
+      "description": "A guard captain in formal armor"
+    },
+    {
+      "filename": "merchant_wealthy_01.png",
+      "tags": {
+        "role": ["merchant", "trader", "shopkeeper"],
+        "vibe": ["wealthy", "greedy", "noble", "clean"],
+        "palette": ["gold", "purple", "white"],
+        "biome": ["city", "market"]
+      },
+      "description": "Wealthy merchant with fine robes and jewelry"
+    },
+    {
+      "filename": "merchant_traveling_01.png",
+      "tags": {
+        "role": ["merchant", "trader", "traveler"],
+        "vibe": ["friendly", "practical", "rugged"],
+        "palette": ["brown", "green", "tan"],
+        "biome": ["plains", "forest", "road"]
+      },
+      "description": "Traveling merchant with pack and practical clothing"
+    },
+    {
+      "filename": "beggar_01.png",
+      "tags": {
+        "role": ["villager", "peasant", "beggar", "outcast"],
+        "vibe": ["poor", "ragged", "dirty", "sad"],
+        "palette": ["brown", "grey"],
+        "biome": ["swamp", "slums", "ruins"]
+      },
+      "description": "Ragged villager with torn clothing"
+    },
+    {
+      "filename": "scholar_01.png",
+      "tags": {
+        "role": ["scholar", "mage", "researcher"],
+        "vibe": ["intellectual", "bookish", "formal", "curious"],
+        "palette": ["blue", "white", "gold"],
+        "biome": ["library", "tower", "city"]
+      },
+      "description": "Scholar in formal robes with book"
+    },
+    {
+      "filename": "mystic_01.png",
+      "tags": {
+        "role": ["mystic", "witch", "seer"],
+        "vibe": ["cryptic", "ethereal", "mysterious", "otherworldly"],
+        "palette": ["purple", "black", "silver"],
+        "biome": ["swamp", "dark_forest", "mystical"]
+      },
+      "description": "Mystic with flowing robes and mystical symbols"
+    },
+    {
+      "filename": "explorer_01.png",
+      "tags": {
+        "role": ["explorer", "adventurer", "scout"],
+        "vibe": ["adventurous", "rugged", "bold", "practical"],
+        "palette": ["brown", "green", "leather"],
+        "biome": ["jungle", "mountains", "desert"]
+      },
+      "description": "Explorer with practical gear and map"
+    },
+    {
+      "filename": "builder_01.png",
+      "tags": {
+        "role": ["builder", "architect", "craftsperson"],
+        "vibe": ["creative", "meticulous", "practical", "proud"],
+        "palette": ["grey", "brown", "tan"],
+        "biome": ["city", "village", "construction"]
+      },
+      "description": "Builder with tools and work clothes"
+    },
+    {
+      "filename": "farmer_01.png",
+      "tags": {
+        "role": ["farmer", "villager", "peasant"],
+        "vibe": ["hardworking", "simple", "honest", "practical"],
+        "palette": ["brown", "green", "straw"],
+        "biome": ["plains", "village", "farmland"]
+      },
+      "description": "Farmer with simple clothing and farming tools"
+    },
+    {
+      "filename": "warrior_knight_01.png",
+      "tags": {
+        "role": ["warrior", "knight", "soldier"],
+        "vibe": ["noble", "brave", "disciplined", "honorable"],
+        "palette": ["silver", "blue", "white"],
+        "biome": ["castle", "fortress", "battlefield"]
+      },
+      "description": "Knight in shining armor with crest"
+    },
+    {
+      "filename": "warrior_barbarian_01.png",
+      "tags": {
+        "role": ["warrior", "barbarian", "raider"],
+        "vibe": ["savage", "aggressive", "fierce", "primitive"],
+        "palette": ["brown", "red", "fur"],
+        "biome": ["taiga", "mountains", "tundra"]
+      },
+      "description": "Barbarian with furs and primitive weapons"
+    },
+    {
+      "filename": "fisher_01.png",
+      "tags": {
+        "role": ["fisher", "sailor", "gatherer"],
+        "vibe": ["patient", "weathered", "practical"],
+        "palette": ["blue", "grey", "white"],
+        "biome": ["ocean", "beach", "river"]
+      },
+      "description": "Fisher with nets and ocean-worn clothing"
+    },
+    {
+      "filename": "outcast_01.png",
+      "tags": {
+        "role": ["outcast", "loner", "survivor"],
+        "vibe": ["distrustful", "ragged", "bitter", "independent"],
+        "palette": ["dark_grey", "brown", "black"],
+        "biome": ["wasteland", "ruins", "isolation"]
+      },
+      "description": "Lone survivor with makeshift gear"
+    }
+  ],
+  "selection_logic": {
+    "description": "How to match skins to generated NPCs",
+    "steps": [
+      "1. LLM generates NPC with archetype_id and unique_trait",
+      "2. Extract keywords from unique_trait (e.g., 'obsessed with emeralds' → ['wealthy', 'greedy', 'emeralds'])",
+      "3. Query skins where role matches archetype AND vibe matches keywords",
+      "4. If multiple matches, prioritize by palette match (optional)",
+      "5. Return filename for NPC to use"
+    ],
+    "example": {
+      "input": {
+        "archetype_id": "merchant",
+        "unique_trait": "Obsessed with emeralds, hates haggling"
+      },
+      "keywords": ["wealthy", "greedy", "emeralds"],
+      "query": "role=merchant AND vibe IN [wealthy, greedy]",
+      "result": "merchant_wealthy_01.png"
+    }
+  }
+}

@@ -1,0 +1,49 @@
+{
+  "providers": {
+    "ollama": {
+      "type": "ollama",
+      "endpoint": "http://localhost:11434",
+      "enabled": true,
+      "models": {
+        "llama3.2:latest": {
+          "capabilities": ["fast", "conversational"],
+          "speed_ms": 500
+        },
+        "llama3.1:8b": {
+          "capabilities": ["creative", "reasoning"],
+          "speed_ms": 1500
+        },
+        "deepseek-r1:latest": {
+          "capabilities": ["analytical", "code"],
+          "speed_ms": 2000
+        }
+      }
+    }
+  },
+  "task_types": {
+    "quick_response": {
+      "preferred_model": "llama3.2:latest",
+      "fallback": "llama3.1:8b"
+    },
+    "dialogue": {
+      "preferred_model": "llama3.1:8b",
+      "fallback": "llama3.2:latest"
+    },
+    "quest_generation": {
+      "preferred_model": "deepseek-r1:latest",
+      "fallback": "llama3.1:8b"
+    }
+  },
+  "keep_alive": {
+    "duration": "10m",
+    "preload_models": ["llama3.2:latest", "llama3.1:8b"]
+  },
+  "context_optimization": {
+    "enabled": true,
+    "memory_window": {
+      "quick_response": 3,
+      "dialogue": 10,
+      "quest_generation": 20
+    }
+  }
+}

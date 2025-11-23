@@ -1,0 +1,91 @@
+# Dependencies
+node_modules/
+venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Build outputs
+dist/
+build/
+out/
+*.jar
+!gradle/wrapper/gradle-wrapper.jar
+*.tsbuildinfo
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Logs
+*.log
+logs/
+runtimebuglog.txt
+
+# Environment
+.env
+.env.local
+*.local
+
+# Data files (contain user data)
+npc/config/memory.json
+npc/config/relationships.json
+npc/config/dynamic_npcs.json
+npc/merchant/inventory.json
+npc/registry/npc_registry.db
+factions/player_standings.db
+game_state/world_state.db
+events/minecraft_events.json
+minecraft_events.json
+lore/discovered.json
+MIIN_spawned_npcs.json
+
+# Backups
+*.backup
+*_backup.json
+*.bak
+
+# Temp files
+*.tmp
+*.temp
+.cache/
+
+# OS-specific
+Thumbs.db
+desktop.ini
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Gradle
+.gradle/
+gradle-app.setting
+!gradle-wrapper.jar
+!gradle-wrapper.properties
+*.hprof
+
+# Kotlin/Java
+*.class
+*.jar
+*.war
+*.nar
+*.ear
+*.zip
+*.tar.gz
+*.rar
+hs_err_pid*
+
+# Minecraft
+run/
+minecraft/
+.fabric/
+
+# Ollama
+ollama_models/
+
+# Claude
+.claude/

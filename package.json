@@ -1,0 +1,36 @@
+{
+  "name": "MIIN",
+  "version": "0.1.0",
+  "description": "MCP bridge for Minecraft intelligence integration",
+  "main": "dist/index.js",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx watch src/index.ts",
+    "start": "node dist/index.js",
+    "inspect": "npx @modelcontextprotocol/inspector node dist/index.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.21.1",
+    "ws": "^8.18.0",
+    "zod": "^3.22.0",
+    "node-fetch": "^3.3.2"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/ws": "^8.5.10",
+    "tsx": "^4.0.0",
+    "typescript": "^5.0.0"
+  },
+  "mcp": {
+    "name": "Minecraft Intelligence MCP",
+    "description": "Connect Minecraft events to MIIN intelligence modules for creative analysis and proactive suggestions",
+    "tools": [
+      "minecraft_analyze_build",
+      "minecraft_suggest_palette",
+      "minecraft_detect_patterns",
+      "minecraft_get_insights",
+      "minecraft_track_event"
+    ]
+  }
+}

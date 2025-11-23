@@ -1,0 +1,36 @@
+{
+    "factions": [
+        {
+            "id": "builders_guild",
+            "name": "Builders Guild",
+            "description": "A collective of master architects and builders dedicated to constructing magnificent structures.",
+            "base_reputation": 0,
+            "allies": [
+                "miners_union"
+            ],
+            "enemies": [
+                "nature_wardens"
+            ]
+        },
+        {
+            "id": "miners_union",
+            "name": "Miners Union",
+            "description": "Hardworking miners who delve deep into the earth to extract valuable resources.",
+            "base_reputation": 0,
+            "allies": [
+                "builders_guild"
+            ],
+            "enemies": []
+        },
+        {
+            "id": "nature_wardens",
+            "name": "Nature Wardens",
+            "description": "Protectors of the natural world who oppose excessive industrialization.",
+            "base_reputation": 0,
+            "allies": [],
+            "enemies": [
+                "builders_guild"
+            ]
+        }
+    ]
+}
