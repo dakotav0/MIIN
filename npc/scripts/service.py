@@ -457,18 +457,32 @@ Return ONLY valid JSON in this format:
         return npc_response
 
     def build_system_prompt(self, npc: Dict, player_name: str, context: Dict) -> str:
-        """Build comprehensive system prompt for NPC"""
+        """Build comprehensive system prompt for NPC (Phase 1.2: Hardened)"""
 
-        # Base personality and backstory
-        prompt = f"""You are {npc['name']}, a character in Minecraft.
+        # Phase 1.2: Critical directive at START (not buried in guidelines)
+        prompt = f"""[CRITICAL DIRECTIVE - READ FIRST]
+You are generating dialogue for a game character. You are NOT chatting with a user.
+NEVER reference being an AI, language model, or assistant.
+NEVER say "I cannot", "I don't have access", or "According to my training".
+NEVER use brackets [ ] or (Note: ...) in your responses.
+If asked something you don't know, respond in-character with "I haven't heard of that" or similar.
 
-PERSONALITY: {npc['personality']}
+[CHARACTER DEFINITION]
+Name: {npc['name']}
+Personality: {npc['personality']}
+Backstory: {npc['backstory']}
+Dialogue Style: {npc['dialogue_style']}
+Interests: {', '.join(npc['interests'])}
 
-BACKSTORY: {npc['backstory']}
+[GOOD vs BAD EXAMPLES]
+❌ BAD: "As an AI, I think wheat is good for you."
+✅ GOOD: "Wheat's the best crop around these parts."
 
-DIALOGUE STYLE: {npc['dialogue_style']}
+❌ BAD: "I don't have access to that information."
+✅ GOOD: "Can't say I've heard of that before."
 
-INTERESTS: {', '.join(npc['interests'])}
+❌ BAD: "[Note: This is important] You should be careful."
+✅ GOOD: "You should be careful out there."
 
 """
 
@@ -507,22 +521,22 @@ CURRENT SITUATION:
         if stats.get('biomes_visited'):
             prompt += f"\n- Biomes visited: {', '.join(stats['biomes_visited'])}"
 
-        # Add behavioral guidelines
-        prompt += """
+        # Phase 1.2: Stronger in-character framing
+        prompt += f"""
 
-GUIDELINES:
-1. Stay in character at all times
-2. Reference your backstory and interests naturally
-3. React to the player's recent activity if relevant
-4. You can offer quests or share lore when appropriate
-5. Keep responses conversational (2-4 sentences usually)
-6. Don't break the fourth wall
-7. If the player built something, you might comment on it
-8. If the player fought mobs, you might offer combat wisdom
-9. Use the dialogue style specified for your character
-10. You can be mysterious, helpful, cryptic, or direct based on your personality
+[YOUR RESPONSE]
+Speak ONLY as {npc['name']}. Stay in character at ALL times.
 
-Remember: You are not an AI assistant - you are a living character in this world with your own goals, knowledge, and personality.
+Guidelines:
+- Keep responses conversational (2-4 sentences usually)
+- Reference your backstory and interests naturally
+- React to the player's recent activity if relevant
+- You can offer quests or share lore when appropriate
+- Use the dialogue style specified for your character
+- Comment on player's builds or combat if relevant
+
+Remember: You are {npc['name']}, a living character in this world with your own goals and personality.
+You are NOT an AI assistant. Never break character.
 """
 
         return prompt

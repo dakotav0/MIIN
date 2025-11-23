@@ -11,6 +11,7 @@ Generates context-aware dialogue options based on:
 
 import json
 import sys
+import re
 from pathlib import Path
 from typing import Dict, List, Optional, Any
 from datetime import datetime
@@ -37,6 +38,7 @@ class DialogueService:
         """Initialize dialogue service"""
         self.root = project_root
         self.relationships_path = relationships_path or str(self.root / 'npc' / 'config' / 'relationships.json')
+        self.inventory_path = str(self.root / 'npc' / 'merchant' / 'inventory.json')
         self.ollama_url = ollama_url
 
         # Load NPC service for access to NPCs and memory
@@ -47,6 +49,9 @@ class DialogueService:
 
         # Load relationships
         self.relationships = self.load_relationships()
+
+        # Load merchant inventory (Phase 1.3)
+        self.merchant_inventory = self.load_merchant_inventory()
 
         print(f"[Dialogue] Service initialized with lore integration", file=sys.stderr)
 
@@ -65,6 +70,31 @@ class DialogueService:
                 json.dump(self.relationships, f, indent=2)
         except Exception as e:
             print(f"[Dialogue] Error saving relationships: {e}", file=sys.stderr)
+
+    def load_merchant_inventory(self) -> Dict:
+        """Load merchant inventory data (Phase 1.3)"""
+        try:
+            with open(self.inventory_path, 'r') as f:
+                return json.load(f)
+        except FileNotFoundError:
+            print(f"[Dialogue] Merchant inventory not found at {self.inventory_path}", file=sys.stderr)
+            return {}
+        except Exception as e:
+            print(f"[Dialogue] Error loading merchant inventory: {e}", file=sys.stderr)
+            return {}
+
+    def _get_npc_inventory(self, npc_id: str) -> Optional[Dict]:
+        """Get inventory for a specific NPC merchant (Phase 1.3)"""
+        return self.merchant_inventory.get(npc_id)
+
+    def _format_inventory_for_prompt(self, inventory: Dict) -> str:
+        """Format inventory for LLM context (Phase 1.3)"""
+        items = []
+        for item in inventory.get('stock', []):
+            items.append(
+                f"- {item['item']}: {item['quantity']} available @ {item['price_buy']} emeralds each"
+            )
+        return "\n".join(items)
 
     def get_relationship(self, npc_id: str, player_name: str) -> Dict:
         """Get relationship data between NPC and player"""
@@ -227,6 +257,12 @@ class DialogueService:
             lore_items = [f"- {l['title']} ({l['category']})" for l in discovered_lore[:10]]
             lore_summary = "\n".join(lore_items)
 
+        # Phase 1.3: Load merchant inventory if NPC is a merchant
+        inventory = self._get_npc_inventory(npc['id'])
+        inventory_context = ""
+        if inventory:
+            inventory_context = self._format_inventory_for_prompt(inventory)
+
         prompt = f"""You are generating dialogue options for a Baldur's Gate 3 style RPG interaction.
 
 NPC: {npc['name']}
@@ -248,7 +284,19 @@ PLAYER'S RECENT ACTIVITY:
 
 PLAYER'S DISCOVERED LORE (shared knowledge - NPC can reference these topics):
 {lore_summary if lore_summary else "None discovered yet"}
+"""
 
+        # Phase 1.3: Inject merchant inventory if available
+        if inventory_context:
+            prompt += f"""
+MERCHANT INVENTORY (Phase 1.3: Only offer items you have in stock):
+{inventory_context}
+
+IMPORTANT: Only offer items you have in stock. Check quantities before mentioning trades.
+"""
+
+        # Continue building prompt
+        prompt += f"""
 ACTIVE QUESTS FROM THIS NPC:
 {json.dumps(active_quests, indent=2) if active_quests else "None"}
 
@@ -449,6 +497,31 @@ Make options feel natural and reactive to the context. High relationship = more 
             "note": "Fallback options (LLM unavailable)"
         }
 
+    def _sanitize_npc_response(self, response: str) -> str:
+        """
+        Remove meta-awareness and system prompt leakage from NPC responses
+
+        Filters:
+        - AI self-references
+        - Technical jargon
+        - Meta-commentary in parentheses/brackets
+        """
+        # Patterns to remove
+        meta_patterns = [
+            r'(As an AI|According to my training|I cannot|I don\'t have access)',
+            r'(I am a language model|I was created by|My purpose is)',
+            r'\[.*?\]',  # Remove bracketed meta-commentary
+            r'\(Note:.*?\)',  # Remove notes in parentheses
+        ]
+
+        for pattern in meta_patterns:
+            response = re.sub(pattern, '', response, flags=re.IGNORECASE)
+
+        # Clean up extra whitespace
+        response = re.sub(r'\s+', ' ', response).strip()
+
+        return response
+
     def select_option(
         self,
         npc_id: str,
@@ -492,6 +565,9 @@ Make options feel natural and reactive to the context. High relationship = more 
         response = self.npc_service.generate_npc_response(
             npc_id, player_name, option_text
         )
+
+        # Sanitize response to remove meta-awareness (Phase 1.1)
+        response = self._sanitize_npc_response(response)
 
         return {
             "npc_id": npc_id,
@@ -537,10 +613,11 @@ Make options feel natural and reactive to the context. High relationship = more 
         Handle player response and generate next turn of dialogue
         """
         # 1. Process selection (update relationship, memory)
-        # We don't have option_id here, so we pass 0 or find it if possible. 
+        # We don't have option_id here, so we pass 0 or find it if possible.
         # For LLM dialogue, strict ID tracking is less critical than text.
         selection_result = self.select_option(npc_id, player_name, 0, option_text)
-        
+
+        # Response is already sanitized in select_option
         npc_response = selection_result["npc_response"]
         
         # 2. Check if conversation should end
