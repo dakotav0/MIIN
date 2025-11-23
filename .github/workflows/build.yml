@@ -14,14 +14,14 @@ jobs:
       - run: npm run build
 
   build-kotlin:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-java@v3
-        with:
-          java-version: '17'
-          distribution: 'temurin'
-      - name: Grant execute permission for gradlew
-        run: chmod +x MIIN/gradlew
-      - name: Build with Gradle
-        run: cd MIIN && ./gradlew build
+      runs-on: ubuntu-latest
+      steps:
+        - uses: actions/checkout@v3
+        - uses: actions/setup-java@v3
+          with:
+            java-version: '21' # Updated from '17' to match build.gradle.kts
+            distribution: 'temurin'
+        - name: Grant execute permission for gradlew
+          run: chmod +x miinkt/gradlew # Updated path from 'MIIN' to 'miinkt'
+        - name: Build with Gradle
+          run: cd miinkt && ./gradlew build # Updated path from 'MIIN' to 'miinkt'
