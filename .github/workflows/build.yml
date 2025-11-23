@@ -19,9 +19,9 @@ jobs:
       - uses: actions/checkout@v3
       - uses: actions/setup-java@v3
         with:
-          java-version: '17'
+          java-version: '21' # Updated from '17' to match build.gradle.kts
           distribution: 'temurin'
       - name: Grant execute permission for gradlew
-        run: chmod +x MIIN/gradlew
+        run: chmod +x miinkt/gradlew # Updated path from 'MIIN' to 'miinkt'
       - name: Build with Gradle
-        run: cd MIIN && ./gradlew build
+        run: cd miinkt && ./gradlew build # Updated path from 'MIIN' to 'miinkt'
