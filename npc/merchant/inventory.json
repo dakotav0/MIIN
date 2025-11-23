@@ -1,0 +1,64 @@
+{
+  "rowan": {
+    "role": "general_merchant",
+    "stock": [
+      {
+        "item": "minecraft:wheat",
+        "quantity": 64,
+        "price_buy": 5,
+        "price_sell": 3,
+        "restock_rate": 16,
+        "max_stock": 128
+      },
+      {
+        "item": "minecraft:bread",
+        "quantity": 32,
+        "price_buy": 10,
+        "price_sell": 6,
+        "restock_rate": 8,
+        "max_stock": 64
+      },
+      {
+        "item": "minecraft:iron_sword",
+        "quantity": 3,
+        "price_buy": 50,
+        "price_sell": 25,
+        "restock_rate": 1,
+        "max_stock": 5
+      }
+    ],
+    "currency": "minecraft:emerald",
+    "last_restock": "2025-01-21T10:00:00Z"
+  },
+  "marina": {
+    "role": "fisher",
+    "stock": [
+      {
+        "item": "minecraft:cod",
+        "quantity": 48,
+        "price_buy": 3,
+        "price_sell": 1,
+        "restock_rate": 12,
+        "max_stock": 64
+      },
+      {
+        "item": "minecraft:salmon",
+        "quantity": 32,
+        "price_buy": 4,
+        "price_sell": 2,
+        "restock_rate": 10,
+        "max_stock": 48
+      },
+      {
+        "item": "minecraft:fishing_rod",
+        "quantity": 5,
+        "price_buy": 15,
+        "price_sell": 7,
+        "restock_rate": 2,
+        "max_stock": 10
+      }
+    ],
+    "currency": "minecraft:emerald",
+    "last_restock": "2025-01-21T08:00:00Z"
+  }
+}
