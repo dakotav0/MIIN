@@ -1,0 +1,16 @@
+{
+  "astral_order": {
+    "color": "blue",
+    "relationships": {
+      "green_watch": 0,
+      "ember_clan": -10
+    }
+  },
+  "green_watch": {
+    "color": "green",
+    "relationships": {
+      "astral_order": 0,
+      "ember_clan": -5
+    }
+  }
+}

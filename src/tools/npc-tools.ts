@@ -8,6 +8,8 @@ import { executePythonScript, createErrorResult, createSuccessResult } from '../
 import { ToolHandler } from '../types.js';
 import { promisify } from 'util';
 import { exec as execCallback } from 'child_process';
+import { assertArgs } from '../utils/assert-args.js';
+import { dialogueDaemon } from '../services/dialogue-daemon.js';
 
 const exec = promisify(execCallback);
 
@@ -15,11 +17,11 @@ const exec = promisify(execCallback);
  * minecraft_npc_talk - Basic NPC conversation
  */
 export const npcTalkHandler: ToolHandler = async (args) => {
-  const { npc, player, message } = args as {
+  const { npc, player, message } = assertArgs<{
     npc: string;
     player: string;
     message: string;
-  };
+  }>(args, ['npc', 'player', 'message']);
 
   try {
     const scriptPath = `${process.cwd()}/npc/scripts/talk.py`;
@@ -42,12 +44,12 @@ export const npcTalkHandler: ToolHandler = async (args) => {
  * minecraft_npc_talk_with_suggestions - NPC talk with follow-up suggestions
  */
 export const npcTalkWithSuggestionsHandler: ToolHandler = async (args) => {
-  const { npc, player, message, request_suggestions } = args as {
+  const { npc, player, message, request_suggestions } = assertArgs<{
     npc: string;
     player: string;
     message: string;
     request_suggestions?: boolean;
-  };
+  }>(args, ['npc', 'player', 'message']);
 
   try {
     const scriptPath = `${process.cwd()}/npc/scripts/talk.py`;
@@ -93,23 +95,18 @@ export const npcListHandler: ToolHandler = async (args) => {
  * minecraft_dialogue_start_llm - Start LLM-driven dialogue
  */
 export const dialogueStartLLMHandler: ToolHandler = async (args) => {
-  const { npc, player } = args as {
+  const { npc, player, nearby_entities } = assertArgs<{
     npc: string;
     player: string;
-  };
+    nearby_entities?: any[];
+  }>(args, ['npc', 'player']);
 
   try {
-    const scriptPath = `${process.cwd()}/dialogue/service.py`;
-    const { stdout, stderr } = await exec(
-      `python "${scriptPath}" start_llm "${npc}" "${player}"`,
-      { timeout: 120000 }
-    );
-
-    if (stderr) {
-      console.error('[Dialogue] stderr:', stderr);
-    }
-
-    const result = JSON.parse(stdout.trim());
+    const result = await dialogueDaemon.call('start_llm', {
+      npc,
+      player,
+      nearby_entities: nearby_entities ?? [],
+    });
     return createSuccessResult(result);
   } catch (error: any) {
     return createErrorResult(error, 'Failed to start LLM dialogue');
@@ -120,27 +117,22 @@ export const dialogueStartLLMHandler: ToolHandler = async (args) => {
  * minecraft_dialogue_respond - Respond in LLM-driven dialogue
  */
 export const dialogueRespondHandler: ToolHandler = async (args) => {
-  const { conversation_id, npc, player, option_text } = args as {
+  const { conversation_id, npc, player, option_text, nearby_entities } = assertArgs<{
     conversation_id: string;
     npc: string;
     player: string;
     option_text: string;
-  };
+    nearby_entities?: any[];
+  }>(args, ['conversation_id', 'npc', 'player', 'option_text']);
 
   try {
-    const scriptPath = `${process.cwd()}/dialogue/service.py`;
-    // Escape option_text properly for shell (double quotes to preserve full message)
-    const escapedText = option_text.replace(/"/g, '\\"');
-    const { stdout, stderr } = await exec(
-      `python "${scriptPath}" respond "${npc}" "${player}" "${conversation_id}" "${escapedText}"`,
-      { timeout: 120000 }
-    );
-
-    if (stderr) {
-      console.error('[Dialogue] stderr:', stderr);
-    }
-
-    const result = JSON.parse(stdout.trim());
+    const result = await dialogueDaemon.call('respond', {
+      conversation_id,
+      npc,
+      player,
+      option_text,
+      nearby_entities: nearby_entities ?? [],
+    });
     return createSuccessResult(result);
   } catch (error: any) {
     return createErrorResult(error, 'Failed to respond in dialogue');
@@ -151,25 +143,18 @@ export const dialogueRespondHandler: ToolHandler = async (args) => {
  * minecraft_dialogue_options - Get BG3-style dialogue options
  */
 export const dialogueOptionsHandler: ToolHandler = async (args) => {
-  const { npc, player, context } = args as {
+  const { npc, player, context } = assertArgs<{
     npc: string;
     player: string;
     context?: string;
-  };
+  }>(args, ['npc', 'player']);
 
   try {
-    const scriptPath = `${process.cwd()}/dialogue/service.py`;
-    const contextArg = context || 'greeting';
-    const { stdout, stderr } = await exec(
-      `python "${scriptPath}" options "${npc}" "${player}" "${contextArg}"`,
-      { timeout: 120000 }
-    );
-
-    if (stderr) {
-      console.error('[Dialogue] stderr:', stderr);
-    }
-
-    const options = JSON.parse(stdout.trim());
+    const options = await dialogueDaemon.call('options', {
+      npc,
+      player,
+      context: context || 'greeting',
+    });
     return createSuccessResult(options);
   } catch (error: any) {
     return createErrorResult(error, 'Failed to get dialogue options');
@@ -180,29 +165,22 @@ export const dialogueOptionsHandler: ToolHandler = async (args) => {
  * minecraft_dialogue_select - Select a dialogue option
  */
 export const dialogueSelectHandler: ToolHandler = async (args) => {
-  const { npc, player, option_id, option_text, relationship_delta } = args as {
+  const { npc, player, option_id, option_text, relationship_delta } = assertArgs<{
     npc: string;
     player: string;
     option_id: number;
     option_text: string;
     relationship_delta?: number;
-  };
+  }>(args, ['npc', 'player', 'option_id', 'option_text']);
 
   try {
-    const scriptPath = `${process.cwd()}/dialogue/service.py`;
-    // Escape option_text properly for shell (double quotes to preserve full message)
-    const escapedText = option_text.replace(/"/g, '\\"');
-    const deltaArg = relationship_delta !== undefined ? relationship_delta : 0;
-    const { stdout, stderr } = await exec(
-      `python "${scriptPath}" select "${npc}" "${player}" ${option_id} "${escapedText}" ${deltaArg}`,
-      { timeout: 120000 }
-    );
-
-    if (stderr) {
-      console.error('[Dialogue] stderr:', stderr);
-    }
-
-    const result = JSON.parse(stdout.trim());
+    const result = await dialogueDaemon.call('select', {
+      npc,
+      player,
+      option_id,
+      option_text,
+      relationship_delta: relationship_delta ?? 0,
+    });
     return createSuccessResult(result);
   } catch (error: any) {
     return createErrorResult(error, 'Failed to select dialogue option');
@@ -210,7 +188,7 @@ export const dialogueSelectHandler: ToolHandler = async (args) => {
 };
 
 export const npcCreateHandler: ToolHandler = async (args) => {
-  const { template_id, x, y, z, dimension, biome, name } = args as {
+  const { template_id, x, y, z, dimension, biome, name } = assertArgs<{
     template_id: string;
     x: number;
     y: number;
@@ -218,7 +196,7 @@ export const npcCreateHandler: ToolHandler = async (args) => {
     dimension: string;
     biome: string;
     name?: string;
-  };
+  }>(args, ['template_id', 'x', 'y', 'z', 'dimension', 'biome']);
 
   try {
     const scriptPath = `${process.cwd()}/npc/scripts/create.py`;

@@ -1,6 +1,7 @@
 package miinkt.listener.dialogue
 
 import com.google.gson.Gson
+import com.google.gson.JsonArray
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
 import java.net.URI
@@ -17,11 +18,14 @@ import miinkt.listener.state.DialogueOption
 import miinkt.listener.state.DialogueState
 import miinkt.listener.state.RollCheck
 import kotlin.random.Random
+import net.minecraft.entity.LivingEntity
+import net.minecraft.entity.mob.HostileEntity
 import net.fabricmc.fabric.api.event.player.UseEntityCallback
 import net.minecraft.server.network.ServerPlayerEntity
 import net.minecraft.text.Text
 import net.minecraft.util.ActionResult
 import net.minecraft.util.Hand
+import net.minecraft.util.math.Box
 import org.slf4j.LoggerFactory
 
 /**
@@ -192,15 +196,68 @@ class DialogueManager(
             player.sendMessage(Text.literal(""), false)
             player.sendMessage(Text.literal("§6═══════ §e§l${npc.npcName} §6═══════"), false)
 
-            // Start LLM dialogue
-            startLlmDialogue(player, state)
+            // Start LLM dialogue with nearby context captured on the server thread
+            val nearbyEntities = getNearbyEntities(player)
+            startLlmDialogue(player, state, nearbyEntities)
         } finally {
             lock.unlock()
         }
     }
 
+    /** Snapshot nearby entities for context-aware dialogue */
+    private fun getNearbyEntities(
+        player: ServerPlayerEntity,
+        radius: Double = 16.0,
+        limit: Int = 10
+    ): JsonArray {
+        val world = player.entityWorld
+        val box = Box(
+            player.x - radius,
+            player.y - radius,
+            player.z - radius,
+            player.x + radius,
+            player.y + radius,
+            player.z + radius
+        )
+
+        val nearby: List<Pair<Double, JsonObject>> = world.getOtherEntities(player, box) { entity ->
+            entity is LivingEntity && !entity.isSpectator
+        }.map { entity ->
+            val distance = String.format("%.1f", player.distanceTo(entity))
+            val payload = JsonObject()
+            when (entity) {
+                is MIINNpcEntity -> {
+                    payload.addProperty("type", "npc")
+                    payload.addProperty("id", entity.npcId)
+                    payload.addProperty("name", entity.npcName)
+                }
+                is ServerPlayerEntity -> {
+                    payload.addProperty("type", "player")
+                    payload.addProperty("name", entity.name.string)
+                }
+                is LivingEntity -> {
+                    payload.addProperty("type", "mob")
+                    payload.addProperty("mob_type", entity.type.toString())
+                    payload.addProperty("hostile", entity is HostileEntity)
+                }
+            }
+            payload.addProperty("distance", distance)
+            Pair(distance.toDoubleOrNull() ?: Double.MAX_VALUE, payload)
+        }
+
+        val array = JsonArray()
+        nearby.sortedBy { it.first }
+            .take(limit)
+            .forEach { pair -> array.add(pair.second) }
+        return array
+    }
+
     /** Start LLM-driven dialogue */
-    private fun startLlmDialogue(player: ServerPlayerEntity, state: DialogueState) {
+    private fun startLlmDialogue(
+        player: ServerPlayerEntity,
+        state: DialogueState,
+        nearbyEntities: JsonArray
+    ) {
         val playerName = player.name.string
         val server = player.entityWorld.server
 
@@ -209,6 +266,7 @@ class DialogueManager(
                 val args = JsonObject().apply {
                     addProperty("npc", state.npcId)  // MCP expects "npc" not "npc_id"
                     addProperty("player", playerName)  // MCP expects "player" not "player_name"
+                    add("nearby_entities", nearbyEntities)
                 }
 
                 val response = sendMcpToolCall("minecraft_dialogue_start_llm", args)
@@ -597,6 +655,7 @@ class DialogueManager(
 
             // Get NPC response via LLM
             val server = player.entityWorld.server
+            val nearbyEntities = getNearbyEntities(player)
             state.pendingRequest = CompletableFuture.runAsync {
                 try {
                     val args = JsonObject().apply {
@@ -604,6 +663,7 @@ class DialogueManager(
                         addProperty("npc", state.npcId)  // MCP expects "npc" not "npc_id"
                         addProperty("player", playerName)  // MCP expects "player" not "player_name"
                         addProperty("option_text", option.text)
+                        add("nearby_entities", nearbyEntities)
 
                         // Add roll check result if present
                         if (rollSuccess != null && rollTotal != null && option.rollCheck != null) {

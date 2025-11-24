@@ -8,6 +8,7 @@ import { executePythonScript, createErrorResult, createSuccessResult } from '../
 import { ToolHandler } from '../types.js';
 import { promisify } from 'util';
 import { exec as execCallback } from 'child_process';
+import { assertArgs } from '../utils/assert-args.js';
 
 const exec = promisify(execCallback);
 
@@ -15,10 +16,10 @@ const exec = promisify(execCallback);
  * minecraft_lore_get - Get a lore book (by ID or random)
  */
 export const loreGetHandler: ToolHandler = async (args) => {
-  const { lore_id, category } = args as {
+  const { lore_id, category } = assertArgs<{
     lore_id?: string;
     category?: string;
-  };
+  }>(args, []);
 
   try {
     const scriptPath = `${process.cwd()}/lore/service.py`;
@@ -49,9 +50,7 @@ export const loreGetHandler: ToolHandler = async (args) => {
  * minecraft_lore_progress - Get player's lore discovery progress
  */
 export const loreProgressHandler: ToolHandler = async (args) => {
-  const { player } = args as {
-    player: string;
-  };
+  const { player } = assertArgs<{ player: string }>(args, ['player']);
 
   try {
     const scriptPath = `${process.cwd()}/lore/service.py`;
@@ -89,9 +88,7 @@ export const loreQueryHandler: ToolHandler = async (args) => {
  * minecraft_satchel_view - View player's lore satchel with details
  */
 export const satchelViewHandler: ToolHandler = async (args) => {
-  const { player } = args as {
-    player: string;
-  };
+  const { player } = assertArgs<{ player: string }>(args, ['player']);
 
   try {
     // Get full lore progress with details

@@ -360,6 +360,13 @@ export const NPC_TOOLS: Tool[] = [
           type: 'string',
           description: 'Player name',
         },
+        nearby_entities: {
+          type: 'array',
+          description: 'Optional nearby entity snapshot (players/NPCs/mobs with distance/hostility)',
+          items: {
+            type: 'object',
+          },
+        },
       },
       required: ['npc', 'player'],
     },
@@ -385,6 +392,13 @@ export const NPC_TOOLS: Tool[] = [
         option_text: {
           type: 'string',
           description: 'Selected option text',
+        },
+        nearby_entities: {
+          type: 'array',
+          description: 'Optional nearby entity snapshot (players/NPCs/mobs with distance/hostility)',
+          items: {
+            type: 'object',
+          },
         },
       },
       required: ['conversation_id', 'npc', 'player', 'option_text'],

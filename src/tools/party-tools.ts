@@ -8,6 +8,7 @@ import { executePythonScript, createErrorResult, createSuccessResult } from '../
 import { ToolHandler } from '../types.js';
 import { promisify } from 'util';
 import { exec as execCallback } from 'child_process';
+import { assertArgs } from '../utils/assert-args.js';
 
 const exec = promisify(execCallback);
 
@@ -15,10 +16,10 @@ const exec = promisify(execCallback);
  * minecraft_party_create - Create a new party
  */
 export const partyCreateHandler: ToolHandler = async (args) => {
-  const { player, party_name } = args as {
+  const { player, party_name } = assertArgs<{
     player: string;
     party_name?: string;
-  };
+  }>(args, ['player']);
 
   try {
     const scriptPath = `${process.cwd()}/party/service.py`;
@@ -36,10 +37,10 @@ export const partyCreateHandler: ToolHandler = async (args) => {
  * minecraft_party_invite - Invite an NPC to the party
  */
 export const partyInviteHandler: ToolHandler = async (args) => {
-  const { player, npc_id } = args as {
+  const { player, npc_id } = assertArgs<{
     player: string;
     npc_id: string;
-  };
+  }>(args, ['player', 'npc_id']);
 
   try {
     const scriptPath = `${process.cwd()}/party/service.py`;
@@ -56,10 +57,10 @@ export const partyInviteHandler: ToolHandler = async (args) => {
  * minecraft_party_leave - Remove an NPC from party or disband party
  */
 export const partyLeaveHandler: ToolHandler = async (args) => {
-  const { player, npc_id } = args as {
+  const { player, npc_id } = assertArgs<{
     player: string;
     npc_id?: string;
-  };
+  }>(args, ['player']);
 
   try {
     const scriptPath = `${process.cwd()}/party/service.py`;
@@ -77,10 +78,10 @@ export const partyLeaveHandler: ToolHandler = async (args) => {
  * minecraft_party_chat - Send a message to all party members
  */
 export const partyChatHandler: ToolHandler = async (args) => {
-  const { player, message } = args as {
+  const { player, message } = assertArgs<{
     player: string;
     message: string;
-  };
+  }>(args, ['player', 'message']);
 
   try {
     const scriptPath = `${process.cwd()}/party/service.py`;
@@ -97,9 +98,7 @@ export const partyChatHandler: ToolHandler = async (args) => {
  * minecraft_party_status - Get current party status
  */
 export const partyStatusHandler: ToolHandler = async (args) => {
-  const { player } = args as {
-    player: string;
-  };
+  const { player } = assertArgs<{ player: string }>(args, ['player']);
 
   try {
     const scriptPath = `${process.cwd()}/party/service.py`;
@@ -116,10 +115,10 @@ export const partyStatusHandler: ToolHandler = async (args) => {
  * minecraft_party_discuss - Discuss a topic with all party NPCs
  */
 export const partyDiscussHandler: ToolHandler = async (args) => {
-  const { player, topic } = args as {
+  const { player, topic } = assertArgs<{
     player: string;
     topic: string;
-  };
+  }>(args, ['player', 'topic']);
 
   try {
     const scriptPath = `${process.cwd()}/party/service.py`;
