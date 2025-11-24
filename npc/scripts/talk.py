@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
 """Simple script to generate NPC dialogue"""
-import sys
 import json
 from pathlib import Path
 
-# Add project root to path (go up from npc/scripts/ to root)
-project_root = Path(__file__).parent.parent.parent
-sys.path.insert(0, str(project_root))
+# Add project root to path (go up from npc/scripts/ to MIIN root)
+import sys, os
+from pathlib import Path
+ROOT = Path(__file__).resolve().parents[2]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
 # Get arguments
 if len(sys.argv) < 4:

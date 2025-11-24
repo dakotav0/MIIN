@@ -1,0 +1,46 @@
+{
+"lore_fragments": {
+    "ocean_mysteries": [
+      "The ocean floor holds cities older than memory.",
+      "Fish swim in patterns that predict the weather days in advance.",
+      "There's a current that flows between all waters - even in different dimensions.",
+      "The guardians protect more than treasure. They guard a doorway."
+    ],
+    "void_knowledge": [
+      "The End isn't empty - it's full of everything that was unmade.",
+      "Endermen don't teleport. They step between moments.",
+      "The dragon guards the exit because she knows what waits beyond.",
+      "In the void, distance is just a suggestion."
+    ],
+    "merchant_secrets": [
+      "Every item has two prices - what it costs and what it's worth.",
+      "The wandering traders know paths between villages that don't exist on any map.",
+      "Emeralds hold value because the villagers remember when they were eyes.",
+      "The best trades happen when both parties think they've won."
+    ],
+    "deep_dark_lore": [
+      "The warden doesn't hunt by sound - it hunts by fear.",
+      "Ancient cities were built to contain something, not to live in.",
+      "The skulk spreads like a memory trying not to be forgotten.",
+      "Diamond isn't the rarest thing in the deep. Silence is."
+    ],
+    "forest_whispers": [
+      "Every tree remembers every axe that's touched it.",
+      "The flowers turn toward portals, not toward the sun.",
+      "Bees know the location of every flower in loaded chunks.",
+      "The tall birch forest exists in the space between updates."
+    ],
+    "combat_wisdom": [
+      "The best defense is knowing when to fight and when to build higher walls.",
+      "Every mob has a weakness - patience reveals all.",
+      "Light is your greatest weapon against the darkness.",
+      "Fear keeps you alive. Courage keeps you fighting."
+    ],
+    "constellation_lore": [
+      "When you build at night, the stars watch and remember.",
+      "The constellation of the Builder appears only to those who create with purpose.",
+      "Each star is a possibility - a structure that could exist if only someone dared to build it.",
+      "The cosmos doesn't judge your builds, it celebrates them."
+    ]
+  }
+}

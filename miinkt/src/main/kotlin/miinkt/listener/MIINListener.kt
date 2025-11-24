@@ -29,6 +29,7 @@ import java.util.concurrent.LinkedBlockingQueue
 import miinkt.listener.entity.NpcRegistry
 import miinkt.listener.entity.NpcManager
 import miinkt.listener.entity.MIINNpcEntity
+import miinkt.listener.entity.DynamicNpcGenerator
 import miinkt.listener.item.ItemRegistry
 import miinkt.listener.component.MIINDataComponents
 import miinkt.listener.state.BuildSession
@@ -89,6 +90,10 @@ class MIINListener : ModInitializer {
         private lateinit var commandRegistry: MIINCommandRegistry
         private lateinit var dialogueManager: DialogueManager
         private lateinit var loreService: MIINLoreService
+
+        fun getDialogueManager(): DialogueManager {
+            return dialogueManager
+        }
     }
 
     override fun onInitialize() {
@@ -135,6 +140,9 @@ class MIINListener : ModInitializer {
                     LOGGER.warn("You can copy npcs.json from the MIINkt repository")
                 }
             }
+
+            // Initialize dynamic generation
+            DynamicNpcGenerator.initialize(server)
         }
 
         // Clear NPC map when server stops (prevents issues when switching worlds)
@@ -173,11 +181,32 @@ class MIINListener : ModInitializer {
             },
             { player, type ->
                 // Handle NPC actions
-                val state = playerDialogues[player.name.string]
-                if (state != null) {
-                    player.sendMessage(Text.literal("§7Action '§e$type§7' requested (Not yet implemented)"), false)
+                val action = type.lowercase()
+                
+                // Find nearest NPC within 10 blocks
+                val npc = player.entityWorld.getEntitiesByClass(
+                    MIINNpcEntity::class.java,
+                    player.boundingBox.expand(10.0)
+                ) { true }.minByOrNull { it.squaredDistanceTo(player) }
+
+                if (npc == null) {
+                    player.sendMessage(Text.literal("§cNo NPC found nearby."), false)
                 } else {
-                    player.sendMessage(Text.literal("§cYou are not in a conversation!"), false)
+                    when (action) {
+                        "follow" -> {
+                            npc.setFollowTarget(player)
+                            player.sendMessage(Text.literal("§a${npc.npcName} is now following you."), false)
+                        }
+                        "stay" -> {
+                            npc.stopFollowing()
+                            player.sendMessage(Text.literal("§e${npc.npcName} is staying put."), false)
+                        }
+                        "roam" -> {
+                            npc.setBehavior(MIINNpcEntity.BehaviorMode.ROAMING, 15.0)
+                            player.sendMessage(Text.literal("§b${npc.npcName} will roam nearby."), false)
+                        }
+                        else -> player.sendMessage(Text.literal("§cUnknown action. Try: follow, stay, roam"), false)
+                    }
                 }
             },
             { player ->
@@ -410,6 +439,9 @@ class MIINListener : ModInitializer {
         ServerTickEvents.END_SERVER_TICK.register { server ->
             tickCounter++
 
+            // Tick dynamic generator
+            DynamicNpcGenerator.tick(server)
+
             // Every 5 seconds (100 ticks), check for session updates
             if (tickCounter >= 100) {
                 tickCounter = 0
@@ -531,6 +563,12 @@ class MIINListener : ModInitializer {
                         val targetPlayer = command.data["player"] as? String
 
                         if (targetPlayer != null) {
+                            // Check if player is in dialogue
+                            if (dialogueManager.hasActiveDialogue(targetPlayer)) {
+                                LOGGER.debug("[IDLE-CHATTER] Skipping message to $targetPlayer - player in dialogue")
+                                continue
+                            }
+
                             // Send to specific player
                             server.playerManager.playerList
                                 .find { it.name.string == targetPlayer }
@@ -592,6 +630,22 @@ class MIINListener : ModInitializer {
                             }
                         } else {
                             LOGGER.warn("NPC $npcId or player $playerName not found for action")
+                        }
+                    }
+
+                    "npc_dialogue" -> {
+                        // Trigger NPC dialogue
+                        val npcId = command.data["npc_id"] as? String ?: continue
+                        val playerName = command.data["player"] as? String ?: continue
+                        
+                        val npc = NpcManager.getNpc(npcId)
+                        val player = server.playerManager.playerList.find { it.name.string == playerName }
+
+                        if (npc != null && player != null) {
+                            LOGGER.info("Starting dialogue with $npcId for $playerName")
+                            dialogueManager.startNpcDialogue(player, npc)
+                        } else {
+                            LOGGER.warn("NPC $npcId or player $playerName not found for dialogue")
                         }
                     }
 

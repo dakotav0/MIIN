@@ -4,13 +4,12 @@ Check quest progress for a player based on their Minecraft events.
 Called by the MCP server.
 """
 
-import sys
 import json
 from pathlib import Path
 
-# Add project root to path (go up from npc/quests/ to root)
-project_root = Path(__file__).parent.parent.parent
-sys.path.insert(0, str(project_root))
+import sys, os
+BASE = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+sys.path.insert(0, BASE)
 
 from npc.scripts.service import NPCService
 

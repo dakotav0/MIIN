@@ -221,7 +221,7 @@ export const npcCreateHandler: ToolHandler = async (args) => {
   };
 
   try {
-    const scriptPath = `${process.cwd()}/npc_create.py`;
+    const scriptPath = `${process.cwd()}/npc/scripts/create.py`;
     const nameArg = name ? `--name "${name.replace(/"/g, '\\"')}"` : '';
 
     const { stdout, stderr } = await exec(
@@ -234,35 +234,12 @@ export const npcCreateHandler: ToolHandler = async (args) => {
 
     try {
       const result = JSON.parse(stdout);
-      return {
-        content: [
-          {
-            type: "text",
-            text: JSON.stringify(result, null, 2),
-          },
-        ],
-      };
+      return createSuccessResult(result);
     } catch (e) {
-      return {
-        content: [
-          {
-            type: "text",
-            text: `Error parsing output: ${stdout}`,
-          },
-        ],
-        isError: true,
-      };
+      return createErrorResult(e, `Error parsing output: ${stdout}`);
     }
-  } catch (error) {
-    return {
-      content: [
-        {
-          type: "text",
-          text: `Error executing script: ${error}`,
-        },
-      ],
-      isError: true,
-    };
+  } catch (error: any) {
+    return createErrorResult(error, 'Failed to create NPC');
   }
 };
 
@@ -278,4 +255,5 @@ export const NPC_HANDLERS = {
   'minecraft_dialogue_options': dialogueOptionsHandler,
   'minecraft_dialogue_select': dialogueSelectHandler,
   'minecraft_npc_create': npcCreateHandler,
+  'minecraft_generate_dynamic_npc': npcCreateHandler,
 };

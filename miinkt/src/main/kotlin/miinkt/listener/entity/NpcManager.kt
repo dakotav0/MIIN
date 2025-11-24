@@ -59,7 +59,7 @@ object NpcManager {
     /**
      * Save the list of spawned NPC IDs for this world
      */
-    private fun saveSpawnedNpcIds(server: MinecraftServer) {
+    fun saveSpawnedNpcIds(server: MinecraftServer) {
         val file = getSpawnTrackingFile(server)
         try {
             val array = JsonArray()
@@ -168,7 +168,7 @@ object NpcManager {
     /**
      * Spawn a single NPC with ground-level detection
      */
-    private fun spawnNpc(
+    fun spawnNpc(
         world: ServerWorld,
         npcId: String,
         name: String,

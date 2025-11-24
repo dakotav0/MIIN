@@ -7,6 +7,13 @@ Usage: python npc_create.py <template_id> <x> <y> <z> <dimension> <biome> [name]
 import sys
 import json
 import argparse
+from pathlib import Path
+
+# Ensure project root is on path
+ROOT = Path(__file__).resolve().parents[2]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
 from npc.scripts.service import NPCService
 
 def main():

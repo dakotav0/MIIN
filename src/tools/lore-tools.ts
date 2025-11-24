@@ -68,6 +68,23 @@ export const loreProgressHandler: ToolHandler = async (args) => {
   }
 };
 
+export const loreGenerateHandler: ToolHandler = async (args) => {
+  return createErrorResult(
+    new Error('minecraft_lore_generate is not implemented in this build'),
+    'Lore generation not available'
+  );
+};
+
+/**
+ * minecraft_lore_query - placeholder (not yet implemented)
+ */
+export const loreQueryHandler: ToolHandler = async (args) => {
+  return createErrorResult(
+    new Error('minecraft_lore_query is not implemented in this build'),
+    'Lore query not available'
+  );
+};
+
 /**
  * minecraft_satchel_view - View player's lore satchel with details
  */
@@ -123,4 +140,6 @@ export const LORE_HANDLERS = {
   'minecraft_lore_get': loreGetHandler,
   'minecraft_lore_progress': loreProgressHandler,
   'minecraft_satchel_view': satchelViewHandler,
+  'minecraft_lore_generate': loreGenerateHandler,
+  'minecraft_lore_query': loreQueryHandler,
 };

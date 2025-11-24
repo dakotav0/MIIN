@@ -6,11 +6,11 @@ Runs the HTTP bridge for Kotlin mod to communicate with Minecraft MCP server.
 Listens on port 5557 by default.
 """
 
-import sys
 from pathlib import Path
 
-# Add parent directory to path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+import sys, os
+BASE = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+sys.path.insert(0, BASE)
 
 from mcp_bridge import MinecraftMCPBridge, create_http_bridge
 

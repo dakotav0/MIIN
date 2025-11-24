@@ -9,7 +9,9 @@ data class DialogueState(
     val npcEntity: MIINNpcEntity,
     val options: MutableList<DialogueOption> = mutableListOf(),
     var showingActions: Boolean = false,
-    var conversationId: String? = null
+    var conversationId: String? = null,
+    val timestamp: Long = System.currentTimeMillis(),
+    var pendingRequest: java.util.concurrent.CompletableFuture<*>? = null
 )
 
 data class DialogueOption(

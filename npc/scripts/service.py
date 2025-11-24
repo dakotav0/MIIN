@@ -7,8 +7,6 @@ that remember conversations, generate quests, and deliver narrative rewards.
 """
 
 import json
-import sys
-import os
 import tempfile
 from pathlib import Path
 from typing import Dict, List, Optional, Any
@@ -16,8 +14,11 @@ from datetime import datetime, timedelta, timezone
 import requests
 import random
 
-# Add parent directory to path for MIIN imports
-sys.path.insert(0, str(Path(__file__).parent.parent))
+# Add project root to path for absolute imports (npc, dialogue, etc.)
+import sys, os
+ROOT = Path(__file__).resolve().parents[2]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
 # Import LLM Router (Phase 5: Integration)
 from npc.scripts.llm_router import SimpleLLMRouter
@@ -64,6 +65,19 @@ class NPCService:
         self.quests = self.load_quests()
 
         print(f"[NPC] Service initialized with {len(self.npcs)} NPCs", file=sys.stderr)
+
+        # HOTLOADING: Send a dummy request to force the model into VRAM immediately
+        print("[NPC] Hotloading LLM models...", file=sys.stderr)
+        try:
+            # Use a dummy NPC ID if available, otherwise skip
+            if self.npcs:
+                dummy_id = next(iter(self.npcs))
+                self.generate_npc_response(dummy_id, "system", "warmup")
+                print("[NPC] Models hotloaded and ready.", file=sys.stderr)
+            else:
+                print("[NPC] No NPCs loaded, skipping hotload.", file=sys.stderr)
+        except Exception as e:
+            print(f"[NPC] Hotloading failed (will load on first chat): {e}", file=sys.stderr)
 
     def load_templates(self) -> Dict:
         """Load NPC templates"""
