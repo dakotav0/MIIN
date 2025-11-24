@@ -8,6 +8,7 @@ import { createErrorResult, createSuccessResult } from '../utils/python-executor
 import { ToolHandler } from '../types.js';
 import type { IntelligenceBridge } from '../intelligence-bridge.js';
 import type { MinecraftEventTracker } from '../event-tracker.js';
+import { assertArgs } from '../utils/assert-args.js';
 
 // Dependencies injected from main module
 let intelligenceBridge: IntelligenceBridge;
@@ -28,13 +29,13 @@ export function initializeBuildTools(
  * minecraft_analyze_build - Analyze a completed build
  */
 export const analyzeBuildHandler: ToolHandler = async (args) => {
-  const { buildName, blocks, blockCounts, buildTime, tags } = args as {
+  const { buildName, blocks, blockCounts, buildTime, tags } = assertArgs<{
     buildName: string;
     blocks: string[];
     blockCounts?: Record<string, number>;
     buildTime?: number;
     tags?: string[];
-  };
+  }>(args, ['buildName', 'blocks']);
 
   try {
     // Track the build event
@@ -66,11 +67,11 @@ export const analyzeBuildHandler: ToolHandler = async (args) => {
  * minecraft_suggest_palette - Suggest block palette for theme
  */
 export const suggestPaletteHandler: ToolHandler = async (args) => {
-  const { theme, existingBlocks, paletteSize } = args as {
+  const { theme, existingBlocks, paletteSize } = assertArgs<{
     theme: string;
     existingBlocks?: string[];
     paletteSize?: number;
-  };
+  }>(args, ['theme']);
 
   try {
     // Use music intelligence pattern for block curation
@@ -90,10 +91,10 @@ export const suggestPaletteHandler: ToolHandler = async (args) => {
  * minecraft_detect_patterns - Detect patterns in build history
  */
 export const detectPatternsHandler: ToolHandler = async (args) => {
-  const { days, patternType } = args as {
+  const { days, patternType } = assertArgs<{
     days?: number;
     patternType?: string;
-  };
+  }>(args, []);
 
   try {
     // Get patterns from event history
@@ -113,9 +114,7 @@ export const detectPatternsHandler: ToolHandler = async (args) => {
  * minecraft_get_insights - Get proactive insights
  */
 export const getInsightsHandler: ToolHandler = async (args) => {
-  const { context } = args as {
-    context?: any;
-  };
+  const { context } = assertArgs<{ context?: any }>(args, []);
 
   try {
     // Get insights from intelligence bridge

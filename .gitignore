@@ -53,6 +53,7 @@ MIIN_spawned_npcs.json
 *.tmp
 *.temp
 .cache/
+tool-tests.json
 
 # OS-specific
 Thumbs.db

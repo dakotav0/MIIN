@@ -8,6 +8,7 @@ import { executePythonScript, createErrorResult, createSuccessResult } from '../
 import { ToolHandler } from '../types.js';
 import { promisify } from 'util';
 import { exec as execCallback } from 'child_process';
+import { assertArgs } from '../utils/assert-args.js';
 
 const exec = promisify(execCallback);
 
@@ -15,9 +16,7 @@ const exec = promisify(execCallback);
  * minecraft_check_milestones - Check milestones for a player
  */
 export const checkMilestonesHandler: ToolHandler = async (args) => {
-  const { player } = args as {
-    player: string;
-  };
+  const { player } = assertArgs<{ player: string }>(args, ['player']);
 
   try {
     const scriptPath = `${process.cwd()}/milestones/service.py`;
@@ -38,9 +37,7 @@ export const checkMilestonesHandler: ToolHandler = async (args) => {
  * minecraft_list_milestones - List all milestones for a player
  */
 export const listMilestonesHandler: ToolHandler = async (args) => {
-  const { player } = args as {
-    player: string;
-  };
+  const { player } = assertArgs<{ player: string }>(args, ['player']);
 
   try {
     const scriptPath = `${process.cwd()}/milestones/service.py`;

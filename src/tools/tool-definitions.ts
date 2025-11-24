@@ -360,6 +360,13 @@ export const NPC_TOOLS: Tool[] = [
           type: 'string',
           description: 'Player name',
         },
+        nearby_entities: {
+          type: 'array',
+          description: 'Optional nearby entity snapshot (players/NPCs/mobs with distance/hostility)',
+          items: {
+            type: 'object',
+          },
+        },
       },
       required: ['npc', 'player'],
     },
@@ -386,6 +393,13 @@ export const NPC_TOOLS: Tool[] = [
           type: 'string',
           description: 'Selected option text',
         },
+        nearby_entities: {
+          type: 'array',
+          description: 'Optional nearby entity snapshot (players/NPCs/mobs with distance/hostility)',
+          items: {
+            type: 'object',
+          },
+        },
       },
       required: ['conversation_id', 'npc', 'player', 'option_text'],
     },
@@ -399,6 +413,44 @@ export const NPC_TOOLS: Tool[] = [
         template_id: {
           type: 'string',
           description: 'ID of the template to use (e.g., "villager", "guard")',
+        },
+        x: {
+          type: 'number',
+          description: 'X coordinate',
+        },
+        y: {
+          type: 'number',
+          description: 'Y coordinate',
+        },
+        z: {
+          type: 'number',
+          description: 'Z coordinate',
+        },
+        dimension: {
+          type: 'string',
+          description: 'Dimension (e.g., "minecraft:overworld")',
+        },
+        biome: {
+          type: 'string',
+          description: 'Biome name',
+        },
+        name: {
+          type: 'string',
+          description: 'Optional specific name for the NPC',
+        },
+      },
+      required: ['template_id', 'x', 'y', 'z', 'dimension', 'biome'],
+    },
+  },
+  {
+    name: 'minecraft_generate_dynamic_npc',
+    description: 'Generate and create a new dynamic NPC with LLM-generated personality based on biome and archetype.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        template_id: {
+          type: 'string',
+          description: 'ID of the template/archetype to use (e.g., "villager", "guard", "fisher")',
         },
         x: {
           type: 'number',
@@ -619,6 +671,38 @@ export const LORE_TOOLS: Tool[] = [
           description: 'Category filter for random book (ancient_builders, dimensional_secrets, etc.)',
         },
       },
+    },
+  },
+  {
+    name: 'minecraft_lore_generate',
+    description: 'Generate lore for a location, item, character, or world context.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        type: {
+          type: 'string',
+          description: 'Lore type (location | item | character | world)',
+        },
+        context: {
+          type: 'object',
+          description: 'Context for lore generation (biome, theme, hooks, etc.)',
+        },
+      },
+      required: ['type', 'context'],
+    },
+  },
+  {
+    name: 'minecraft_lore_query',
+    description: 'Query lore by free-text search (returns best-matching book summaries).',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        query: {
+          type: 'string',
+          description: 'Search query text',
+        },
+      },
+      required: ['query'],
     },
   },
   {

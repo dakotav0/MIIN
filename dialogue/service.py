@@ -10,16 +10,15 @@ Generates context-aware dialogue options based on:
 """
 
 import json
-import sys
 import re
 from pathlib import Path
 from typing import Dict, List, Optional, Any
 from datetime import datetime
 import requests
 
-# Add project root to path (go up from dialogue/ to root)
-project_root = Path(__file__).parent.parent
-sys.path.insert(0, str(project_root))
+import sys, os
+BASE = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+sys.path.insert(0, BASE)
 
 from npc.scripts.service import NPCService
 from lore.service import LoreService
@@ -36,7 +35,7 @@ class DialogueService:
         ollama_url: str = "http://localhost:11434"
     ):
         """Initialize dialogue service"""
-        self.root = project_root
+        self.root = Path(BASE)
         self.relationships_path = relationships_path or str(self.root / 'npc' / 'config' / 'relationships.json')
         self.inventory_path = str(self.root / 'npc' / 'merchant' / 'inventory.json')
         self.ollama_url = ollama_url
@@ -52,6 +51,9 @@ class DialogueService:
 
         # Load merchant inventory (Phase 1.3)
         self.merchant_inventory = self.load_merchant_inventory()
+
+        # Capture proximity snapshot from MCP request (Phase 2.1)
+        self.nearby_entities = self._load_nearby_entities()
 
         print(f"[Dialogue] Service initialized with lore integration", file=sys.stderr)
 
@@ -82,6 +84,15 @@ class DialogueService:
         except Exception as e:
             print(f"[Dialogue] Error loading merchant inventory: {e}", file=sys.stderr)
             return {}
+
+    def _load_nearby_entities(self) -> List[Dict]:
+        """Parse nearby entity snapshot from env (provided by MCP caller)"""
+        raw = os.environ.get("NEARBY_ENTITIES", "[]")
+        try:
+            data = json.loads(raw)
+            return data if isinstance(data, list) else []
+        except Exception:
+            return []
 
     def _get_npc_inventory(self, npc_id: str) -> Optional[Dict]:
         """Get inventory for a specific NPC merchant (Phase 1.3)"""
@@ -562,8 +573,11 @@ Make options feel natural and reactive to the context. High relationship = more 
         self.save_relationships()
 
         # Generate NPC response using the existing NPC service
+        player_context = self.npc_service.get_player_context(
+            player_name, nearby_entities=self.nearby_entities
+        )
         response = self.npc_service.generate_npc_response(
-            npc_id, player_name, option_text
+            npc_id, player_name, option_text, context=player_context
         )
 
         # Sanitize response to remove meta-awareness (Phase 1.1)
@@ -644,11 +658,67 @@ Make options feel natural and reactive to the context. High relationship = more 
         }
 
 def main():
-    """CLI for dialogue service"""
+    """CLI + daemon entrypoint for dialogue service"""
+    # Daemon mode: long-lived process serving JSONL requests on stdin/stdout
+    if len(sys.argv) >= 2 and sys.argv[1] == "serve":
+        service = DialogueService()
+
+        for line in sys.stdin:
+            line = line.strip()
+            if not line:
+                continue
+
+            try:
+                msg = json.loads(line)
+                req_id = msg.get("id")
+                command = msg.get("command")
+                args = msg.get("args", {}) or {}
+
+                # Update proximity snapshot per request
+                service.nearby_entities = args.get("nearby_entities", [])
+
+                if command == "options":
+                    npc_id = args["npc"]
+                    player_name = args["player"]
+                    context_type = args.get("context", "greeting")
+                    result = service.generate_dialogue_options(npc_id, player_name, context_type)
+                elif command == "select":
+                    result = service.select_option(
+                        args["npc"],
+                        args["player"],
+                        int(args.get("option_id", 0)),
+                        args.get("option_text", ""),
+                        int(args.get("relationship_delta", 0))
+                    )
+                elif command == "start_llm":
+                    result = service.start_llm_dialogue(args["npc"], args["player"])
+                elif command == "respond":
+                    result = service.respond_to_dialogue(
+                        args["conversation_id"],
+                        args["npc"],
+                        args["player"],
+                        args.get("option_text", "")
+                    )
+                else:
+                    raise ValueError(f"Unknown command: {command}")
+
+                print(json.dumps({"id": req_id, "result": result}))
+                sys.stdout.flush()
+            except Exception as e:
+                req_id = None
+                try:
+                    req_id = msg.get("id") if 'msg' in locals() and isinstance(msg, dict) else None
+                except Exception:
+                    req_id = None
+                print(json.dumps({"id": req_id, "error": str(e)}))
+                sys.stdout.flush()
+        return
+
+    # Legacy CLI mode
     if len(sys.argv) < 4:
         print(json.dumps({
             "error": "Usage: dialogue_service.py <command> <npc_id> <player_name> [args...]",
-            "commands": ["options", "select", "start_llm", "respond"]
+            "commands": ["options", "select", "start_llm", "respond", "serve"]
         }))
         sys.exit(1)
 

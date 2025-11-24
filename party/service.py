@@ -10,15 +10,14 @@ Handles:
 """
 
 import json
-import sys
 from pathlib import Path
 from typing import Dict, List, Optional, Any
 from datetime import datetime
 import requests
 
-# Add project root to path (go up from party/ to root)
-project_root = Path(__file__).parent.parent
-sys.path.insert(0, str(project_root))
+import sys, os
+BASE = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+sys.path.insert(0, BASE)
 
 from npc.scripts.service import NPCService
 

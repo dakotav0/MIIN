@@ -1283,23 +1283,19 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       case 'minecraft_dialogue_start_llm': {
-        const { npc, player } = args as {
+        const { dialogueDaemon } = await import('./services/dialogue-daemon.js');
+        const { npc, player, nearby_entities } = args as {
           npc: string;
           player: string;
+          nearby_entities?: any[];
         };
 
-        const { promisify } = await import('util');
-        const exec = promisify((await import('child_process')).exec);
-
         try {
-          const scriptPath = `${process.cwd()}/dialogue_service.py`;
-          const { stdout, stderr } = await exec(`python "${scriptPath}" start_llm "${npc}" "${player}"`, { timeout: 120000 });
-
-          if (stderr) {
-            console.error('[Dialogue] stderr:', stderr);
-          }
-
-          const result = JSON.parse(stdout.trim());
+          const result = await dialogueDaemon.call('start_llm', {
+            npc,
+            player,
+            nearby_entities: nearby_entities ?? [],
+          });
 
           return {
             content: [
@@ -1325,27 +1321,23 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       case 'minecraft_dialogue_respond': {
-        const { conversation_id, npc, player, option_text } = args as {
+        const { dialogueDaemon } = await import('./services/dialogue-daemon.js');
+        const { conversation_id, npc, player, option_text, nearby_entities } = args as {
           conversation_id: string;
           npc: string;
           player: string;
           option_text: string;
+          nearby_entities?: any[];
         };
 
-        const { promisify } = await import('util');
-        const exec = promisify((await import('child_process')).exec);
-
         try {
-          const scriptPath = `${process.cwd()}/dialogue_service.py`;
-          // Escape option_text properly for shell (single quotes)
-          const escapedText = option_text.replace(/'/g, "'\\''");
-          const { stdout, stderr } = await exec(`python "${scriptPath}" respond "${conversation_id}" "${npc}" "${player}" '${escapedText}'`, { timeout: 120000 });
-
-          if (stderr) {
-            console.error('[Dialogue] stderr:', stderr);
-          }
-
-          const result = JSON.parse(stdout.trim());
+          const result = await dialogueDaemon.call('respond', {
+            conversation_id,
+            npc,
+            player,
+            option_text,
+            nearby_entities: nearby_entities ?? [],
+          });
 
           return {
             content: [

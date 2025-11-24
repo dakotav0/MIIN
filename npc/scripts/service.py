@@ -7,8 +7,6 @@ that remember conversations, generate quests, and deliver narrative rewards.
 """
 
 import json
-import sys
-import os
 import tempfile
 from pathlib import Path
 from typing import Dict, List, Optional, Any
@@ -16,8 +14,11 @@ from datetime import datetime, timedelta, timezone
 import requests
 import random
 
-# Add parent directory to path for MIIN imports
-sys.path.insert(0, str(Path(__file__).parent.parent))
+# Add project root to path for absolute imports (npc, dialogue, etc.)
+import sys, os
+ROOT = Path(__file__).resolve().parents[2]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
 # Import LLM Router (Phase 5: Integration)
 from npc.scripts.llm_router import SimpleLLMRouter
@@ -64,6 +65,19 @@ class NPCService:
         self.quests = self.load_quests()
 
         print(f"[NPC] Service initialized with {len(self.npcs)} NPCs", file=sys.stderr)
+
+        # HOTLOADING: Send a dummy request to force the model into VRAM immediately
+        print("[NPC] Hotloading LLM models...", file=sys.stderr)
+        try:
+            # Use a dummy NPC ID if available, otherwise skip
+            if self.npcs:
+                dummy_id = next(iter(self.npcs))
+                self.generate_npc_response(dummy_id, "system", "warmup")
+                print("[NPC] Models hotloaded and ready.", file=sys.stderr)
+            else:
+                print("[NPC] No NPCs loaded, skipping hotload.", file=sys.stderr)
+        except Exception as e:
+            print(f"[NPC] Hotloading failed (will load on first chat): {e}", file=sys.stderr)
 
     def load_templates(self) -> Dict:
         """Load NPC templates"""
@@ -266,7 +280,7 @@ Return ONLY valid JSON in this format:
                 "backstory": template['base_backstory']
             }
 
-    def get_player_context(self, player_name: str) -> Dict:
+    def get_player_context(self, player_name: str, nearby_entities: Optional[List[Dict]] = None) -> Dict:
         """
         Get comprehensive player context from Minecraft events
 
@@ -314,6 +328,7 @@ Return ONLY valid JSON in this format:
             "recent_activity": {},
             "location": None,
             "inventory": None,
+            "nearby_entities": nearby_entities or [],
             "stats": {
                 "builds_completed": 0,
                 "blocks_placed": 0,
@@ -521,6 +536,9 @@ CURRENT SITUATION:
         if stats.get('biomes_visited'):
             prompt += f"\n- Biomes visited: {', '.join(stats['biomes_visited'])}"
 
+        # Add proximity awareness (Phase 2.2)
+        prompt += self._format_nearby_entities(context.get('nearby_entities', []))
+
         # Phase 1.2: Stronger in-character framing
         prompt += f"""
 
@@ -535,11 +553,34 @@ Guidelines:
 - Use the dialogue style specified for your character
 - Comment on player's builds or combat if relevant
 
-Remember: You are {npc['name']}, a living character in this world with your own goals and personality.
-You are NOT an AI assistant. Never break character.
-"""
+        Remember: You are {npc['name']}, a living character in this world with your own goals and personality.
+        You are NOT an AI assistant. Never break character.
+        """
 
         return prompt
+
+    def _format_nearby_entities(self, entities: List[Dict]) -> str:
+        """Format nearby entities for prompt injection"""
+        if not entities:
+            return ""
+
+        lines = []
+        for entity in entities[:10]:
+            etype = entity.get('type')
+            distance = entity.get('distance')
+
+            if etype == 'npc':
+                lines.append(f"- {entity.get('name', 'NPC')} ({distance}m)")
+            elif etype == 'player':
+                lines.append(f"- Player: {entity.get('name', 'Unknown')} ({distance}m)")
+            elif etype == 'mob':
+                hostile = "HOSTILE" if entity.get('hostile') else "passive"
+                lines.append(f"- {entity.get('mob_type', 'mob')} ({hostile}, {distance}m)")
+
+        if not lines:
+            return ""
+
+        return "\n[NEARBY ENTITIES]\n" + "\n".join(lines) + "\nIMPORTANT: Adjust your tone if guards, hostile mobs, or other witnesses are present.\n"
 
     def generate_quest(
         self,

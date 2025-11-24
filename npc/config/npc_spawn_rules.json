@@ -1,0 +1,5 @@
+{
+  "forest": ["forest_guard"],
+  "desert": ["desert_nomad"],
+  "mountains": ["ruins_hermit", "scholar_wanderer"]
+}

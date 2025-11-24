@@ -1,6 +1,7 @@
 package miinkt.listener.dialogue
 
 import com.google.gson.Gson
+import com.google.gson.JsonArray
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
 import java.net.URI
@@ -8,18 +9,23 @@ import java.net.http.HttpClient
 import java.net.http.HttpRequest
 import java.net.http.HttpResponse
 import java.time.Duration
+import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.locks.ReentrantLock
 import miinkt.listener.entity.MIINNpcEntity
 import miinkt.listener.entity.NpcManager
 import miinkt.listener.state.DialogueOption
 import miinkt.listener.state.DialogueState
 import miinkt.listener.state.RollCheck
 import kotlin.random.Random
+import net.minecraft.entity.LivingEntity
+import net.minecraft.entity.mob.HostileEntity
 import net.fabricmc.fabric.api.event.player.UseEntityCallback
 import net.minecraft.server.network.ServerPlayerEntity
 import net.minecraft.text.Text
 import net.minecraft.util.ActionResult
 import net.minecraft.util.Hand
+import net.minecraft.util.math.Box
 import org.slf4j.LoggerFactory
 
 /**
@@ -38,12 +44,18 @@ class DialogueManager(
     private val mcpEndpoint: String,
     private val cooldownMs: Long = 500L
 ) {
+    private val playerLocks: ConcurrentHashMap<String, ReentrantLock> = ConcurrentHashMap()
+
+    private fun getPlayerLock(playerId: String): ReentrantLock {
+        return playerLocks.computeIfAbsent(playerId) { ReentrantLock() }
+    }
     companion object {
         private val LOGGER = LoggerFactory.getLogger("MIIN-dialogue")
         private val gson = Gson()
         private val httpClient = HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(5))
             .build()
+        private const val BRIDGE_URL = "http://localhost:5558/command"
 
         /**
          * Parse MCP response format and extract the actual result.
@@ -165,29 +177,96 @@ class DialogueManager(
     /** Start or continue dialogue with an NPC */
     fun startNpcDialogue(player: ServerPlayerEntity, npc: MIINNpcEntity) {
         val playerName = player.name.string
+        val lock = getPlayerLock(playerName)
+        lock.lock()
+        try {
+            // Cancel any existing dialogue for this player
+            playerDialogues[playerName]?.let { existing ->
+                LOGGER.warn("[DIALOGUE-STATE] Player: $playerName, Action: CANCEL, Reason: New dialogue with ${npc.npcId}")
+                existing.pendingRequest?.cancel(true)
+            }
 
-        // Create dialogue state
-        val state = DialogueState(npcId = npc.npcId, npcName = npc.npcName, npcEntity = npc)
-        playerDialogues[playerName] = state
+            LOGGER.info("[DIALOGUE-STATE] Player: $playerName, Action: START, NPC: ${npc.npcId}, Thread: ${Thread.currentThread().name}")
 
-        // Send header
-        player.sendMessage(Text.literal(""), false)
-        player.sendMessage(Text.literal("§6═══════ §e§l${npc.npcName} §6═══════"), false)
+            // Create dialogue state
+            val state = DialogueState(npcId = npc.npcId, npcName = npc.npcName, npcEntity = npc)
+            playerDialogues[playerName] = state
 
-        // Start LLM dialogue
-        startLlmDialogue(player, state)
+            // Send header
+            player.sendMessage(Text.literal(""), false)
+            player.sendMessage(Text.literal("§6═══════ §e§l${npc.npcName} §6═══════"), false)
+
+            // Start LLM dialogue with nearby context captured on the server thread
+            val nearbyEntities = getNearbyEntities(player)
+            startLlmDialogue(player, state, nearbyEntities)
+        } finally {
+            lock.unlock()
+        }
+    }
+
+    /** Snapshot nearby entities for context-aware dialogue */
+    private fun getNearbyEntities(
+        player: ServerPlayerEntity,
+        radius: Double = 16.0,
+        limit: Int = 10
+    ): JsonArray {
+        val world = player.entityWorld
+        val box = Box(
+            player.x - radius,
+            player.y - radius,
+            player.z - radius,
+            player.x + radius,
+            player.y + radius,
+            player.z + radius
+        )
+
+        val nearby: List<Pair<Double, JsonObject>> = world.getOtherEntities(player, box) { entity ->
+            entity is LivingEntity && !entity.isSpectator
+        }.map { entity ->
+            val distance = String.format("%.1f", player.distanceTo(entity))
+            val payload = JsonObject()
+            when (entity) {
+                is MIINNpcEntity -> {
+                    payload.addProperty("type", "npc")
+                    payload.addProperty("id", entity.npcId)
+                    payload.addProperty("name", entity.npcName)
+                }
+                is ServerPlayerEntity -> {
+                    payload.addProperty("type", "player")
+                    payload.addProperty("name", entity.name.string)
+                }
+                is LivingEntity -> {
+                    payload.addProperty("type", "mob")
+                    payload.addProperty("mob_type", entity.type.toString())
+                    payload.addProperty("hostile", entity is HostileEntity)
+                }
+            }
+            payload.addProperty("distance", distance)
+            Pair(distance.toDoubleOrNull() ?: Double.MAX_VALUE, payload)
+        }
+
+        val array = JsonArray()
+        nearby.sortedBy { it.first }
+            .take(limit)
+            .forEach { pair -> array.add(pair.second) }
+        return array
     }
 
     /** Start LLM-driven dialogue */
-    private fun startLlmDialogue(player: ServerPlayerEntity, state: DialogueState) {
+    private fun startLlmDialogue(
+        player: ServerPlayerEntity,
+        state: DialogueState,
+        nearbyEntities: JsonArray
+    ) {
         val playerName = player.name.string
         val server = player.entityWorld.server
 
-        Thread {
+        state.pendingRequest = CompletableFuture.runAsync {
             try {
                 val args = JsonObject().apply {
                     addProperty("npc", state.npcId)  // MCP expects "npc" not "npc_id"
                     addProperty("player", playerName)  // MCP expects "player" not "player_name"
+                    add("nearby_entities", nearbyEntities)
                 }
 
                 val response = sendMcpToolCall("minecraft_dialogue_start_llm", args)
@@ -218,7 +297,7 @@ class DialogueManager(
                             player.sendMessage(Text.literal(""), false)
                             useFallbackOptions(player, state)
                         }
-                        return@Thread
+                        return@runAsync
                     }
 
                     val greeting = result.get("greeting")?.asString ?: getNpcGreeting(state.npcId, state.npcName)
@@ -273,42 +352,62 @@ class DialogueManager(
                     useFallbackOptions(player, state)
                 }
             }
-        }.start()
+        }
     }
 
-    /** Helper to send MCP tool call */
-    private fun sendMcpToolCall(toolName: String, args: JsonObject): JsonObject? {
+    /** Helper to send MCP tool call with retry */
+    fun sendMcpToolCall(toolName: String, args: JsonObject, maxRetries: Int = 2): JsonObject? {
         val toolCall = JsonObject().apply {
             addProperty("tool", toolName)
             add("arguments", args)
         }
 
-        LOGGER.info("Sending MCP tool call: $toolName to $mcpEndpoint")
+        var attempt = 0
+        while (attempt <= maxRetries) {
+            attempt++
+            LOGGER.info("[MCP] Attempt $attempt/${maxRetries + 1} for tool: $toolName")
 
-        val request = HttpRequest.newBuilder()
-            .uri(URI.create(mcpEndpoint))
-            .header("Content-Type", "application/json")
-            .timeout(Duration.ofSeconds(100))
-            .POST(HttpRequest.BodyPublishers.ofString(gson.toJson(toolCall)))
-            .build()
+            val request = HttpRequest.newBuilder()
+                .uri(URI.create(mcpEndpoint))
+                .header("Content-Type", "application/json")
+                .timeout(Duration.ofSeconds(30)) // Reduced from 100s
+                .POST(HttpRequest.BodyPublishers.ofString(gson.toJson(toolCall)))
+                .build()
 
-        try {
-            val response = httpClient.send(request, HttpResponse.BodyHandlers.ofString())
+            try {
+                val startTime = System.currentTimeMillis()
+                LOGGER.info("[PERF] MCP call started: $toolName")
+                
+                val response = httpClient.send(request, HttpResponse.BodyHandlers.ofString())
+                
+                val endTime = System.currentTimeMillis()
+                LOGGER.info("[PERF] MCP call completed: $toolName, Time: ${endTime - startTime}ms")
 
-            if (response.statusCode() == 200) {
-                LOGGER.info("MCP response received: ${response.statusCode()}")
-                return JsonParser.parseString(response.body()).asJsonObject
-            } else {
-                LOGGER.warn("MCP error: ${response.statusCode()} - ${response.body()}")
-                return null
+                if (response.statusCode() == 200) {
+                    LOGGER.info("MCP response received: ${response.statusCode()}")
+                    return JsonParser.parseString(response.body()).asJsonObject
+                } else {
+                    LOGGER.warn("MCP error: ${response.statusCode()} - ${response.body()}")
+                    if (response.statusCode() < 500) return null // Don't retry client errors
+                }
+            } catch (e: java.net.http.HttpTimeoutException) {
+                LOGGER.warn("[MCP] Timeout on attempt $attempt")
+            } catch (e: Exception) {
+                LOGGER.warn("[MCP] Request failed: ${e.message}")
             }
-        } catch (e: java.net.http.HttpTimeoutException) {
-            LOGGER.warn("MCP request timed out after 60s")
-            return null
-        } catch (e: Exception) {
-            LOGGER.warn("MCP request failed: ${e.message}")
-            return null
+
+            if (attempt <= maxRetries) {
+                try {
+                    Thread.sleep(2000) // 2s delay between retries
+                } catch (e: InterruptedException) {
+                    Thread.currentThread().interrupt()
+                    return null
+                }
+            }
         }
+        
+        LOGGER.error("[MCP] All retries failed for tool: $toolName")
+        return null
     }
 
     /** Fetch dialogue options from MCP service (Legacy/Fallback) */
@@ -428,6 +527,8 @@ class DialogueManager(
                 }
 
         state.options.addAll(fallbackOptions)
+        // Add generic quest option
+        state.options.add(DialogueOption(99, "Do you have any work for me?", "curious"))
         sendDialogueOptions(player, state)
     }
 
@@ -464,177 +565,193 @@ class DialogueManager(
     /** Handle player selecting a dialogue option */
     fun handleDialogueSelection(player: ServerPlayerEntity, optionNum: Int) {
         val playerName = player.name.string
-        LOGGER.info("handleDialogueSelection: player=$playerName, option=$optionNum")
-        LOGGER.info("Active dialogues: ${playerDialogues.keys}")
+        val lock = getPlayerLock(playerName)
+        lock.lock()
+        try {
+            LOGGER.info("handleDialogueSelection: player=$playerName, option=$optionNum")
+            LOGGER.info("Active dialogues: ${playerDialogues.keys}")
 
-        val state = playerDialogues[playerName]
+            val state = playerDialogues[playerName]
 
-        if (state == null) {
-            LOGGER.info("No dialogue state found for $playerName")
-            player.sendMessage(
+            if (state == null) {
+                LOGGER.info("No dialogue state found for $playerName")
+                player.sendMessage(
                     Text.literal("§7You're not in a conversation. Right-click an NPC to talk."),
                     false
-            )
-            return
-        }
-
-        LOGGER.info("Found dialogue state: npc=${state.npcId}, options=${state.options.size}")
-
-        val optionIndex = optionNum - 1
-        if (optionIndex !in state.options.indices) {
-            player.sendMessage(
-                    Text.literal("§cInvalid option. Choose 1-${state.options.size}."),
-                    false
-            )
-            return
-        }
-
-        val option = state.options[optionIndex]
-        LOGGER.info("Player $playerName selected option $optionNum: ${option.text}")
-
-        // Check if this option requires a skill check
-        var rollSuccess: Boolean? = null
-        var rollTotal: Int? = null
-
-        if (option.rollCheck != null) {
-            val (roll, success) = performSkillCheck(option.rollCheck)
-            rollSuccess = success
-            rollTotal = roll
-
-            // Show roll result to player
-            val rollText = when {
-                option.rollCheck.advantage -> "§7[Roll with Advantage]"
-                option.rollCheck.disadvantage -> "§7[Roll with Disadvantage]"
-                else -> "§7[Roll]"
+                )
+                return
             }
 
-            val successColor = if (success) "§a" else "§c"
-            val successText = if (success) "SUCCESS" else "FAILURE"
+            LOGGER.info("Found dialogue state: npc=${state.npcId}, options=${state.options.size}")
 
-            player.sendMessage(Text.literal(""), false)
-            player.sendMessage(
-                Text.literal("$rollText §e${option.rollCheck.skill.uppercase()} Check (DC ${option.rollCheck.difficulty})"),
-                false
-            )
-            player.sendMessage(
-                Text.literal("§7You rolled: §f$roll §7→ $successColor$successText"),
-                false
-            )
-            player.sendMessage(Text.literal(""), false)
+            val optionIndex = optionNum - 1
+            if (optionIndex !in state.options.indices) {
+                player.sendMessage(
+                    Text.literal("§cInvalid option. Choose 1-${state.options.size}."),
+                    false
+                )
+                return
+            }
 
-            LOGGER.info("$playerName rolled ${option.rollCheck.skill} check: $roll vs DC ${option.rollCheck.difficulty} = $successText")
-        }
+            val option = state.options[optionIndex]
+            LOGGER.info("[DIALOGUE-STATE] Player: $playerName, Action: UPDATE, NPC: ${state.npcId}, Option: $optionNum")
+            LOGGER.info("Player $playerName selected option $optionNum: ${option.text}")
 
-        // Show player's choice
-        player.sendMessage(Text.literal("§7You: §f${option.text}"), false)
+            // Check if this option requires a skill check
+            var rollSuccess: Boolean? = null
+            var rollTotal: Int? = null
 
-        // Check if this ends the conversation
-        if (option.text.contains("goodbye", ignoreCase = true) ||
-                        option.text.contains("farewell", ignoreCase = true) ||
-                        option.text.contains("leaving", ignoreCase = true) ||
-                        option.text.contains("I should go", ignoreCase = true)
-        ) {
+            if (option.rollCheck != null) {
+                val (roll, success) = performSkillCheck(option.rollCheck)
+                rollSuccess = success
+                rollTotal = roll
 
-            val farewell = getNpcFarewell(state.npcId, state.npcName)
-            player.sendMessage(Text.literal("§e[${state.npcName}]§r $farewell"), false)
-            playerDialogues.remove(playerName)
-            return
-        }
-
-        // Get NPC response via LLM
-        val server = player.entityWorld.server
-        Thread {
-            try {
-                val args = JsonObject().apply {
-                    addProperty("conversation_id", state.conversationId ?: "")
-                    addProperty("npc", state.npcId)  // MCP expects "npc" not "npc_id"
-                    addProperty("player", playerName)  // MCP expects "player" not "player_name"
-                    addProperty("option_text", option.text)
-
-                    // Add roll check result if present
-                    if (rollSuccess != null && rollTotal != null && option.rollCheck != null) {
-                        add("roll_result", JsonObject().apply {
-                            addProperty("skill", option.rollCheck.skill)
-                            addProperty("difficulty", option.rollCheck.difficulty)
-                            addProperty("roll", rollTotal)
-                            addProperty("success", rollSuccess)
-                        })
-                    }
+                // Show roll result to player
+                val rollText = when {
+                    option.rollCheck.advantage -> "§7[Roll with Advantage]"
+                    option.rollCheck.disadvantage -> "§7[Roll with Disadvantage]"
+                    else -> "§7[Roll]"
                 }
 
-                val response = sendMcpToolCall("minecraft_dialogue_respond", args)
-                val result = parseMcpResponse(response)
+                val successColor = if (success) "§a" else "§c"
+                val successText = if (success) "SUCCESS" else "FAILURE"
 
-                if (result != null) {
-                    // Check if response is an error
-                    if (result.has("error")) {
-                        val errorMsg = result.get("error")?.asString ?: "Unknown error"
-                        LOGGER.warn("MCP dialogue respond error: $errorMsg")
+                player.sendMessage(Text.literal(""), false)
+                player.sendMessage(
+                    Text.literal("$rollText §e${option.rollCheck.skill.uppercase()} Check (DC ${option.rollCheck.difficulty})"),
+                    false
+                )
+                player.sendMessage(
+                    Text.literal("§7You rolled: §f$roll §7→ $successColor$successText"),
+                    false
+                )
+                player.sendMessage(Text.literal(""), false)
 
+                LOGGER.info("$playerName rolled ${option.rollCheck.skill} check: $roll vs DC ${option.rollCheck.difficulty} = $successText")
+            }
+
+            // Show player's choice
+            player.sendMessage(Text.literal("§7You: §f${option.text}"), false)
+
+            // Check if this ends the conversation
+            if (option.text.contains("goodbye", ignoreCase = true) ||
+                option.text.contains("farewell", ignoreCase = true) ||
+                option.text.contains("leaving", ignoreCase = true) ||
+                option.text.contains("I should go", ignoreCase = true)
+            ) {
+
+                val farewell = getNpcFarewell(state.npcId, state.npcName)
+                player.sendMessage(Text.literal("§e[${state.npcName}]§r $farewell"), false)
+                playerDialogues.remove(playerName)
+                return
+            }
+
+            // Handle Quest Request (ID 99)
+            if (option.id == 99 || option.text.contains("work", ignoreCase = true)) {
+                LOGGER.warn("[QUEST] Quest generation not yet implemented (Phase 5)")
+                player.sendMessage(Text.literal("§e[${state.npcName}]§r I don't have any work available right now. Check back later!"), false)
+                return
+            }
+
+            // Get NPC response via LLM
+            val server = player.entityWorld.server
+            val nearbyEntities = getNearbyEntities(player)
+            state.pendingRequest = CompletableFuture.runAsync {
+                try {
+                    val args = JsonObject().apply {
+                        addProperty("conversation_id", state.conversationId ?: "")
+                        addProperty("npc", state.npcId)  // MCP expects "npc" not "npc_id"
+                        addProperty("player", playerName)  // MCP expects "player" not "player_name"
+                        addProperty("option_text", option.text)
+                        add("nearby_entities", nearbyEntities)
+
+                        // Add roll check result if present
+                        if (rollSuccess != null && rollTotal != null && option.rollCheck != null) {
+                            add("roll_result", JsonObject().apply {
+                                addProperty("skill", option.rollCheck.skill)
+                                addProperty("difficulty", option.rollCheck.difficulty)
+                                addProperty("roll", rollTotal)
+                                addProperty("success", rollSuccess)
+                            })
+                        }
+                    }
+
+                    val response = sendMcpToolCall("minecraft_dialogue_respond", args)
+                    val result = parseMcpResponse(response)
+
+                    if (result != null) {
+                        // Check if response is an error
+                        if (result.has("error")) {
+                            val errorMsg = result.get("error")?.asString ?: "Unknown error"
+                            LOGGER.warn("MCP dialogue respond error: $errorMsg")
+
+                            server.execute {
+                                val fallbackResponse = getNpcResponse(state.npcId, option)
+                                player.sendMessage(Text.literal("§e[${state.npcName}]§r $fallbackResponse"), false)
+                                fetchDialogueOptions(player, state)
+                            }
+                            return@runAsync
+                        }
+
+                        val npcResponse = result.get("npc_response")?.asString ?: getNpcResponse(state.npcId, option)
+                        val ended = result.get("conversation_ended")?.asBoolean ?: false
+                        val newOptions = result.getAsJsonArray("new_options")
+
+                        // NULL SAFETY: Check if options exist before iterating
+                        if (newOptions != null && newOptions.size() > 0) {
+                            server.execute {
+                                player.sendMessage(Text.literal("§e[${state.npcName}]§r $npcResponse"), false)
+
+                                if (ended) {
+                                    playerDialogues.remove(playerName)
+                                } else {
+                                    state.options.clear()
+                                    newOptions.forEach { opt ->
+                                        val optObj = opt.asJsonObject
+                                        state.options.add(
+                                            DialogueOption(
+                                                id = optObj.get("id").asInt,
+                                                text = optObj.get("text").asString,
+                                                tone = optObj.get("tone")?.asString ?: "neutral",
+                                                rollCheck = parseRollCheck(optObj)
+                                            )
+                                        )
+                                    }
+                                    sendDialogueOptions(player, state)
+                                }
+                            }
+                        } else {
+                            // No new options - end conversation or use fallback
+                            LOGGER.warn("MCP dialogue respond result missing options array")
+                            server.execute {
+                                player.sendMessage(Text.literal("§e[${state.npcName}]§r $npcResponse"), false)
+                                if (ended) {
+                                    playerDialogues.remove(playerName)
+                                } else {
+                                    fetchDialogueOptions(player, state)
+                                }
+                            }
+                        }
+                    } else {
+                        // Fallback
                         server.execute {
                             val fallbackResponse = getNpcResponse(state.npcId, option)
                             player.sendMessage(Text.literal("§e[${state.npcName}]§r $fallbackResponse"), false)
                             fetchDialogueOptions(player, state)
                         }
-                        return@Thread
                     }
-
-                    val npcResponse = result.get("npc_response")?.asString ?: getNpcResponse(state.npcId, option)
-                    val ended = result.get("conversation_ended")?.asBoolean ?: false
-                    val newOptions = result.getAsJsonArray("new_options")
-
-                    // NULL SAFETY: Check if options exist before iterating
-                    if (newOptions != null && newOptions.size() > 0) {
-                        server.execute {
-                            player.sendMessage(Text.literal("§e[${state.npcName}]§r $npcResponse"), false)
-
-                            if (ended) {
-                                playerDialogues.remove(playerName)
-                            } else {
-                                state.options.clear()
-                                newOptions.forEach { opt ->
-                                    val optObj = opt.asJsonObject
-                                    state.options.add(
-                                        DialogueOption(
-                                            id = optObj.get("id").asInt,
-                                            text = optObj.get("text").asString,
-                                            tone = optObj.get("tone")?.asString ?: "neutral",
-                                            rollCheck = parseRollCheck(optObj)
-                                        )
-                                    )
-                                }
-                                sendDialogueOptions(player, state)
-                            }
-                        }
-                    } else {
-                        // No new options - end conversation or use fallback
-                        LOGGER.warn("MCP dialogue respond result missing options array")
-                        server.execute {
-                            player.sendMessage(Text.literal("§e[${state.npcName}]§r $npcResponse"), false)
-                            if (ended) {
-                                playerDialogues.remove(playerName)
-                            } else {
-                                fetchDialogueOptions(player, state)
-                            }
-                        }
-                    }
-                } else {
-                    // Fallback
+                } catch (e: Exception) {
+                    LOGGER.warn("Failed to get LLM response: ${e.message}")
                     server.execute {
                         val fallbackResponse = getNpcResponse(state.npcId, option)
                         player.sendMessage(Text.literal("§e[${state.npcName}]§r $fallbackResponse"), false)
                         fetchDialogueOptions(player, state)
                     }
                 }
-            } catch (e: Exception) {
-                LOGGER.warn("Failed to get LLM response: ${e.message}")
-                server.execute {
-                    val fallbackResponse = getNpcResponse(state.npcId, option)
-                    player.sendMessage(Text.literal("§e[${state.npcName}]§r $fallbackResponse"), false)
-                    fetchDialogueOptions(player, state)
-                }
             }
-        }.start()
+        } finally {
+            lock.unlock()
+        }
     }
 
     /** Get NPC response to player choice (fallback) */
@@ -752,5 +869,15 @@ class DialogueManager(
                 }
             }
         }.start()
+    }
+
+    /** Check if player has an active dialogue */
+    fun hasActiveDialogue(playerName: String): Boolean {
+        return playerDialogues.containsKey(playerName)
+    }
+
+    /** Get the NPC ID the player is currently talking to */
+    fun getActiveNpc(playerName: String): String? {
+        return playerDialogues[playerName]?.npcId
     }
 }

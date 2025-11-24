@@ -1,0 +1,13 @@
+{
+  "template_id": "forest_guard",
+  "archetype": "scout",
+  "allowed_biomes": ["forest", "old_growth_forest", "taiga"],
+  "faction": "green_watch",
+  "background": "protectors of the deep woodlands",
+  "personality_seed": "quiet, watchful, suspicious of outsiders",
+  "dialogue_style": "soft, poetic, nature-metaphors",
+  "name_pool": ["Tallis", "Fenra", "Imra", "Rook"],
+  "skin_pool": ["fg_01.png", "fg_02.png"],
+  "spawn_behavior": "rare_wanderer",
+  "quest_types": ["search", "forest_lore", "guarding"]
+}

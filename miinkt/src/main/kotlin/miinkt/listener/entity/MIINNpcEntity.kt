@@ -69,10 +69,19 @@ class MIINNpcEntity(
         }
     }
 
-    // NPC properties (synced to client via DataTracker)
+    // Server-authoritative NPC ID (avoids DataTracker sync delay)
+    private var serverNpcId: String = "unknown"
+
     var npcId: String
-        get() = dataTracker.get(NPC_ID)
-        set(value) = dataTracker.set(NPC_ID, value)
+        get() = if (entityWorld.isClient) {
+            dataTracker.get(NPC_ID)
+        } else {
+            serverNpcId
+        }
+        set(value) {
+            serverNpcId = value
+            dataTracker.set(NPC_ID, value)
+        }
 
     var npcName: String
         get() = dataTracker.get(NPC_NAME)
@@ -199,6 +208,13 @@ class MIINNpcEntity(
 
         if (hand == Hand.MAIN_HAND && dialogueEnabled) {
             if (!entityWorld.isClient) {
+                // Prevent interaction before ID is set
+                if (npcId == "unknown") {
+                    LOGGER.warn("NPC interaction attempted before ID sync complete")
+                    player.sendMessage(Text.literal("§cNPC is still initializing..."), false)
+                    return ActionResult.FAIL
+                }
+
                 LOGGER.info("SERVER: Player ${player.name.string} interacted with NPC $npcId ($npcName)")
                 triggerDialogue(player)
             }
@@ -264,17 +280,11 @@ class MIINNpcEntity(
                 val response = httpClient.send(request, HttpResponse.BodyHandlers.ofString())
 
                 if (response.statusCode() == 200) {
-                    val result = gson.fromJson(response.body(), JsonObject::class.java)
-                    if (result.has("message")) {
-                        val aiMessage = result.get("message").asString
-                        // Send to player in game via server
-                        world.server?.execute {
-                            serverPlayer?.sendMessage(Text.literal("§e[$npcName]§r $aiMessage"), false)
-                        }
-                    }
+                    LOGGER.info("Dialogue request sent successfully")
+                } else {
+                    LOGGER.warn("Dialogue request failed with status: ${response.statusCode()}")
                 }
             } catch (e: java.net.ConnectException) {
-                // Service not running - this is fine, we already sent the greeting
                 LOGGER.debug("Dialogue service not running")
             } catch (e: Exception) {
                 LOGGER.debug("Dialogue request failed: ${e.message}")

@@ -1,0 +1,13 @@
+{
+  "id": "kira",
+  "name": "Kira Shadowhunter",
+  "archetype": "warrior",
+  "race": "human",
+  "profession": "hunter",
+  "role": "companion",
+  "faction": "astral_order",
+  "personality": "direct, proud, protective, sharp humor",
+  "appearance": "player_model",
+  "skin": "kira.png",
+  "dialogue_style": "laconic, blunt, dry sarcasm"
+}

@@ -5,6 +5,13 @@ Request a themed build challenge from an NPC
 
 import sys
 import json
+from pathlib import Path
+
+# Ensure MIIN root on sys.path for npc imports
+ROOT = Path(__file__).resolve().parents[2]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
 from npc.scripts.service import NPCService
 
 
@@ -16,6 +23,10 @@ def main():
     npc_id = sys.argv[1]
     player_name = sys.argv[2]
     challenge_id = sys.argv[3] if len(sys.argv) > 3 else None
+
+    if npc_id in ("undefined", "", None) or player_name in ("undefined", "", None):
+        print(json.dumps({"error": "Invalid arguments", "npc_id": npc_id, "player": player_name}))
+        sys.exit(1)
 
     service = NPCService()
 

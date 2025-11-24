@@ -7,6 +7,7 @@
  */
 
 import fetch from 'node-fetch';
+import { z } from 'zod';
 
 export interface BuildAnalysis {
   title: string;
@@ -56,6 +57,17 @@ export class IntelligenceBridge {
    * Classify build archetype using LLM analysis
    */
   async classifyArchetype(params: ArchetypeClassification): Promise<any> {
+    const archetypeSchema = z
+      .object({
+        archetype: z.string(),
+        confidence: z.number().min(0).max(1),
+        style: z.string(),
+        scale: z.string(),
+        description: z.string(),
+        suggestions: z.array(z.string()).default([]),
+      })
+      .passthrough();
+
     try {
       const totalBlocks = Object.values(params.blockCounts).reduce((a, b) => a + b, 0);
       const topBlocks = Object.entries(params.blockCounts)
@@ -99,19 +111,52 @@ Respond in this exact JSON format:
       }
 
       const result = await response.json() as { response: string };
-      const classification = JSON.parse(result.response);
 
+      const parsed = this.tryParseJsonResult(result.response);
+      const blockAnalysis = {
+        total: totalBlocks,
+        unique: params.blocks.length,
+        topBlocks: Object.fromEntries(
+          Object.entries(params.blockCounts)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 5)
+        ),
+      };
+
+      if (parsed) {
+        const validation = archetypeSchema.safeParse(parsed);
+
+        if (validation.success) {
+          return {
+            ...validation.data,
+            blockAnalysis,
+          };
+        }
+
+        const defaultClassification = {
+          archetype: parsed.archetype || 'other',
+          confidence: typeof parsed.confidence === 'number' ? Math.min(Math.max(parsed.confidence, 0), 1) : 0.5,
+          style: parsed.style || 'unknown',
+          scale: parsed.scale || 'unknown',
+          description: parsed.description || 'No description provided',
+          suggestions: Array.isArray(parsed.suggestions)
+            ? parsed.suggestions.filter((s: unknown) => typeof s === 'string')
+            : [],
+          validationError: validation.error.flatten(),
+        };
+
+        return {
+          ...defaultClassification,
+          blockAnalysis,
+        };
+      }
+
+      const fallback = this.fallbackArchetypeClassification(params);
       return {
-        ...classification,
-        blockAnalysis: {
-          total: totalBlocks,
-          unique: params.blocks.length,
-          topBlocks: Object.fromEntries(
-            Object.entries(params.blockCounts)
-              .sort((a, b) => b[1] - a[1])
-              .slice(0, 5)
-          ),
-        },
+        ...fallback,
+        isError: true,
+        rawResponse: result.response,
+        error: 'Unable to parse or validate archetype response',
       };
     } catch (error) {
       console.error('Archetype classification error:', error);
@@ -119,6 +164,31 @@ Respond in this exact JSON format:
       // Fallback to rule-based classification
       return this.fallbackArchetypeClassification(params);
     }
+  }
+
+  private tryParseJsonResult(rawResponse: string): any | null {
+    if (!rawResponse) {
+      return null;
+    }
+
+    const trimmed = rawResponse.trim();
+
+    try {
+      return JSON.parse(trimmed);
+    } catch (parseError) {
+      // Continue to tolerant parsing below
+    }
+
+    const jsonMatch = trimmed.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      try {
+        return JSON.parse(jsonMatch[0]);
+      } catch (secondaryError) {
+        // No valid JSON found even after trimming extraneous text
+      }
+    }
+
+    return null;
   }
 
   /**

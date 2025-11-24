@@ -25,7 +25,7 @@ npm run build
 # Click "Start" on minecraft-http-bridge
 
 # Option B: From terminal
-python MIIN/services/minecraft_http_bridge.py
+python MIIN/bridges/http_bridge.py
 ```
 
 You should see:

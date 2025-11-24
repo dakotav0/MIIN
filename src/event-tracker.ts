@@ -20,7 +20,7 @@ export class MinecraftEventTracker {
   private maxEvents: number = 10000; // Keep last 10k events
 
   constructor(eventFile?: string) {
-    this.eventFile = eventFile || path.join(process.cwd(), 'minecraft_events.json');
+    this.eventFile = eventFile || path.join(process.cwd(), 'events', 'minecraft_events.json');
     this.loadEvents();
   }
 

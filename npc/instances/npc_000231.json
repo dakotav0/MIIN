@@ -1,0 +1,22 @@
+{
+  "npc_id": "npc_000231",
+  "template": "forest_guard",
+  "name": "Tallis",
+  "skin": "fg_02.png",
+  "faction": "green_watch",
+  "personality": "watchful, calm, slightly aloof",
+  "biome_created": "forest",
+  "memory": [
+    "Watches the forest paths for signs of corruption.",
+    "Trusts the player after helping with a monster sighting."
+  ],
+  "relationship": {
+    "player": 10,
+    "astral_order": -5
+  },
+  "state": {
+    "last_seen": "2025-11-24T18:29:00Z",
+    "current_task": "patrolling",
+    "location": [123, 71, -44]
+  }
+}

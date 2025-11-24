@@ -6,6 +6,7 @@
 
 import { ToolHandler } from '../types.js';
 import { MinecraftEventTracker } from '../event-tracker.js';
+import { assertArgs } from '../utils/assert-args.js';
 
 // Import event tracker instance (will be injected via factory)
 let eventTracker: MinecraftEventTracker;
@@ -43,10 +44,10 @@ function calculateTotalDistance(states: any[]): number {
  * minecraft_track_event - Track a Minecraft event
  */
 export const trackEventHandler: ToolHandler = async (args) => {
-  const { eventType, data } = args as {
+  const { eventType, data } = assertArgs<{
     eventType: string;
     data: any;
-  };
+  }>(args, ['eventType', 'data']);
 
   eventTracker.trackEvent(eventType, {
     ...data,
@@ -67,10 +68,10 @@ export const trackEventHandler: ToolHandler = async (args) => {
  * minecraft_send_chat - Send chat message to player(s)
  */
 export const sendChatHandler: ToolHandler = async (args) => {
-  const { message, player } = args as {
+  const { message, player } = assertArgs<{
     message: string;
     player?: string;
-  };
+  }>(args, ['message']);
 
   // Send command to Minecraft mod via HTTP bridge
   try {
@@ -138,9 +139,7 @@ export const sendChatHandler: ToolHandler = async (args) => {
  * minecraft_get_inventory - Get player inventory snapshot
  */
 export const getInventoryHandler: ToolHandler = async (args) => {
-  const { player } = args as {
-    player: string;
-  };
+  const { player } = assertArgs<{ player: string }>(args, ['player']);
 
   // Get most recent inventory snapshot for this player
   const inventoryEvents = eventTracker.getEventsByType('inventory_snapshot');
@@ -180,9 +179,7 @@ export const getInventoryHandler: ToolHandler = async (args) => {
  * minecraft_get_player_state - Get current player state
  */
 export const getPlayerStateHandler: ToolHandler = async (args) => {
-  const { player } = args as {
-    player: string;
-  };
+  const { player } = assertArgs<{ player: string }>(args, ['player']);
 
   // Get most recent player state
   const stateEvents = eventTracker.getEventsByType('player_state');
@@ -233,10 +230,10 @@ export const getPlayerStateHandler: ToolHandler = async (args) => {
  * minecraft_get_recent_activity - Get recent player activity summary
  */
 export const getRecentActivityHandler: ToolHandler = async (args) => {
-  const { player, minutes } = args as {
+  const { player, minutes } = assertArgs<{
     player: string;
     minutes?: number;
-  };
+  }>(args, ['player']);
 
   const lookbackMinutes = minutes || 30;
   const cutoff = new Date();
@@ -302,12 +299,12 @@ export const getRecentActivityHandler: ToolHandler = async (args) => {
  * minecraft_teleport - Teleport player to coordinates
  */
 export const teleportHandler: ToolHandler = async (args) => {
-  const { player, x, y, z } = args as {
+  const { player, x, y, z } = assertArgs<{
     player: string;
     x: number;
     y: number;
     z: number;
-  };
+  }>(args, ['player', 'x', 'y', 'z']);
 
   try {
     const response = await fetch('http://localhost:5558/command', {

@@ -309,6 +309,14 @@ def create_http_bridge(bridge: MinecraftMCPBridge, port: int = 5557):
     """
     app = Flask(__name__)
 
+    # CORS headers so dashboard/UI can call the bridge directly
+    @app.after_request
+    def add_cors_headers(response):  # type: ignore[override]
+        response.headers['Access-Control-Allow-Origin'] = '*'
+        response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
+        response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
+        return response
+
     @app.route('/mcp/call', methods=['POST'])
     def mcp_call():
         """Handle MCP tool calls from Kotlin mod"""
